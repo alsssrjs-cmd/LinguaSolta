@@ -1,0 +1,1364 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self' https://generativelanguage.googleapis.com; media-src blob: data:; img-src 'self' data:; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+<!-- seguridad-ignore: riesgos aceptados. (1) CSP con 'unsafe-inline': la app es un solo archivo y nunca inserta texto externo como HTML (solo textContent); revisar si se separa el JS. (2) La llave de Gemini se guarda en el navegador (app personal); mitigado con la casilla "Recordar la llave", CSP estricta, botón "Borrar mis datos" y restricción de la llave en Google. -->
+<meta name="theme-color" content="#14110f">
+<link rel="preconnect" href="https://generativelanguage.googleapis.com" crossorigin>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<title>Língua Solta</title>
+<style>
+:root{
+  --bg:#14110f; --card:#211c19; --line:#352d28; --txt:#f4ece6; --mut:#9d9088;
+  --acc:#a78bfa; --acc2:#6d4ae0;   /* Clara: violeta */
+}
+body.grosera{ --acc:#2ec4b6; --acc2:#0f8f84; } /* Tati: turquesa */
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+body{display:flex;flex-direction:column;max-width:560px;margin:0 auto;padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom);overflow-y:auto}
+header{display:flex;align-items:center;justify-content:space-between;padding:12px 0}
+.streak{font-weight:700}
+.streak small{color:var(--mut);font-weight:400;margin-left:6px}
+.iconbtn{background:var(--card);border:1px solid var(--line);color:var(--txt);border-radius:12px;padding:8px 12px;font-size:15px}
+main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;min-height:300px}
+.stage{position:relative;width:190px;height:190px}
+.avatar{position:absolute;inset:20px;border-radius:50%;background:radial-gradient(circle at 35% 30%,var(--acc),var(--acc2));display:flex;align-items:center;justify-content:center;font-size:62px;font-weight:800;color:#fff;box-shadow:0 8px 30px #0008}
+.ring{position:absolute;inset:0;border-radius:50%;border:3px solid var(--acc);opacity:0}
+.listening .ring{animation:pulse 1.4s ease-out infinite}
+.speaking .avatar{animation:talk .5s ease-in-out infinite alternate}
+.thinking .avatar{animation:think 1s ease-in-out infinite alternate;filter:saturate(.5)}
+@keyframes pulse{0%{transform:scale(.85);opacity:.9}100%{transform:scale(1.25);opacity:0}}
+@keyframes talk{to{transform:scale(1.07)}}
+@keyframes think{to{transform:scale(.94)}}
+.status{font-size:18px;color:var(--mut);min-height:26px;text-align:center}
+.brand{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
+#logFull{white-space:pre-wrap;font:12px/1.5 ui-monospace,Consolas,monospace;background:#16120f;border:1px solid var(--line);border-radius:12px;padding:10px;max-height:50vh;overflow:auto;margin:8px 0}
+.err{display:none;color:#ffb4a2;background:#3a1d17;border:1px solid #7a3523;border-radius:12px;padding:10px 12px;font-size:14px;line-height:1.4;max-width:96%;text-align:center}
+.sub{font-size:15px;text-align:center;max-width:90%;min-height:20px;opacity:.85}
+.tools{display:none;gap:8px}
+.tools.show{display:flex}
+.cta{width:100%;border:0;border-radius:18px;padding:18px;font-size:19px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--acc),var(--acc2));margin:6px 0 12px;cursor:pointer}
+.cta.stop{background:#3a302b}
+.cfg{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:12px}
+.lbl{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;margin:12px 0 6px}
+.lbl:first-child{margin-top:0}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.chip{flex:1;min-width:0;border:1px solid var(--line);background:transparent;color:var(--txt);border-radius:12px;padding:10px 8px;font-size:15px;cursor:pointer}
+.chip.on{background:var(--acc2);border-color:var(--acc);color:#fff;font-weight:700}
+/* Filas con muchas opciones: se parten en varias líneas con un ancho mínimo (antes las 11 regiones se apretaban y las letras se encimaban) */
+.chip{line-height:1.2}
+#region .chip{flex:1 1 30%;min-width:96px;padding:10px 4px;font-size:14px;overflow-wrap:anywhere}
+#regionBox .lbl{margin-top:14px}
+#crudo .chip{flex:1 1 45%;min-width:120px}
+#level .chip,#levelGroup .chip{flex:1 1 30%;min-width:96px}
+#level .chip{flex-basis:45%}
+input[type=range]{width:100%;accent-color:var(--acc);margin:6px 0 2px}
+select,input[type=text],input[type=password]{width:100%;background:#16120f;color:var(--txt);border:1px solid var(--line);border-radius:12px;padding:11px;font-size:15px}
+.sheet{position:fixed;inset:0;background:#000a;display:none;align-items:flex-end;justify-content:center;z-index:5}
+.sheet.open{display:flex}
+.sheet>div{background:var(--card);width:100%;max-width:560px;border-radius:22px 22px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:92vh;overflow:auto}
+.sheet h3{margin:0 0 8px}
+.sheet p{color:var(--mut);font-size:14px;line-height:1.45;margin:6px 0}
+.sheet a{color:var(--acc)}
+.toast{position:fixed;left:16px;right:16px;bottom:90px;background:#000d;border:1px solid var(--line);padding:12px 14px;border-radius:14px;font-size:15px;display:none;z-index:9;text-align:center}
+.small{font-size:13px;padding:10px;width:100%;margin-top:8px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.chk{display:flex;gap:8px;align-items:center;margin-top:12px;font-size:15px}
+#diag{white-space:pre-wrap;font-size:13px;margin:8px 0 0;line-height:1.6}
+</style>
+</head>
+<body>
+<header>
+  <div class="streak"><span id="streakN">🔥 0</span><small id="goal">hoy 0/10</small></div>
+  <div style="display:flex;gap:6px">
+    <button class="iconbtn" id="btnLog" title="Ver detalles técnicos" aria-label="Ver detalles técnicos">🔍</button>
+    <button class="iconbtn" id="btnCfg">⚙️ Ajustes</button>
+  </div>
+</header>
+
+<main id="stage" class="idle">
+  <div class="brand">Língua Solta</div>
+  <div class="stage"><div class="ring"></div><div class="avatar" id="avatar">C</div></div>
+  <div class="status" id="status"></div>
+  <div class="err" id="err"><span id="errTxt"></span><br><button class="iconbtn" id="btnErrLog" style="margin-top:6px;font-size:13px">Ver detalles</button></div>
+  <div class="sub" id="sub"></div>
+  <div class="tools" id="tools">
+    <button class="iconbtn" id="btnRep">🔁 Repetir</button>
+  </div>
+</main>
+
+<button class="cta" id="btnMain">Empezar a hablar</button>
+
+<section class="cfg">
+  <div class="lbl">Personaje</div>
+  <div class="row" id="persona"></div>
+  <div class="lbl">Nivel de lenguaje (escala MCER)</div>
+  <div class="row" id="levelGroup"></div>
+  <div class="row" id="level" style="margin-top:8px"></div>
+  <div class="lbl">Velocidad de la voz: <b id="speedVal">1.25×</b></div>
+  <input type="range" id="speedRange" min="0.6" max="3" step="0.05" list="speedTicks" aria-label="Velocidad de la voz">
+  <datalist id="speedTicks"><option value="0.6"></option><option value="1"></option><option value="1.5"></option><option value="2"></option><option value="2.5"></option><option value="3"></option></datalist>
+  <div class="lbl">Lenguaje fuerte (palabrões, +18)</div>
+  <div class="row" id="crudo"></div>
+  <div id="regionBox" style="display:none">
+    <div class="lbl">Región (jergas)</div>
+    <div class="row" id="region"></div>
+  </div>
+  <div class="lbl">Modo / escenario</div>
+  <select id="scenario"></select>
+</section>
+
+<div class="sheet" id="sheet">
+  <div>
+    <h3>Ajustes</h3>
+    <div class="lbl">Llave de Gemini (gratis)</div>
+    <input type="password" id="key" placeholder="AIza..." autocomplete="off">
+    <p>Consíguela gratis en <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. Se guarda solo en este dispositivo.</p>
+    <div class="lbl">Modelo de texto</div>
+    <input type="text" id="model" placeholder="gemini-flash-latest">
+
+    <label class="chk"><input type="checkbox" id="remember"> Recordar la llave en este dispositivo (si lo apagas, se borra al cerrar la pestaña)</label>
+    <div class="lbl">Pausa antes de contestar</div>
+    <select id="wait"></select>
+    <label class="chk"><input type="checkbox" id="barge"> Poder interrumpirla mientras habla (SOLO con audífonos: con parlantes se oye a sí misma y se corta sola)</label>
+    <label class="chk"><input type="checkbox" id="natural"> Voz natural de Gemini (gasta más cupo gratuito)</label>
+    <div class="two">
+      <div><div class="lbl">Voz natural · Clara</div><select id="gvClara"></select><button class="chip small" data-pv="gv:clara">▶ Escuchar</button></div>
+      <div><div class="lbl">Voz natural · Tati</div><select id="gvTati"></select><button class="chip small" data-pv="gv:tati">▶ Escuchar</button></div>
+    </div>
+    <div class="lbl">Modelo de voz natural (vacío = automático)</div>
+    <input type="text" id="ttsModel" placeholder="automático">
+    <div class="two">
+      <div><div class="lbl">Voz del dispositivo · Clara</div><select id="bvClara"></select><button class="chip small" data-pv="bv:clara">▶ Escuchar</button></div>
+      <div><div class="lbl">Voz del dispositivo · Tati</div><select id="bvTati"></select><button class="chip small" data-pv="bv:tati">▶ Escuchar</button></div>
+    </div>
+    <p>💡 Voces más naturales y gratis: abre la app con <b>Iniciar en Edge (voces naturales).bat</b> (Edge es el icono azul). Ahí aparecen “Francisca (Natural)” y “Thalita (Natural)”. Ojo: el reconocimiento de voz de Edge puede inventar texto con ruido; úsalo con audífonos. Chrome solo trae “Maria”, más robótica, pero reconoce mejor lo que dices.</p>
+    <label class="chk"><input type="checkbox" id="subs"> Mostrar texto de lo que dice (solo para depurar)</label>
+
+    <button class="chip small" id="btnTest">Probar conexión</button>
+    <button class="chip small" id="btnVoice">Probar la voz del personaje actual</button>
+    <button class="chip small" id="btnMic">Probar micrófono y reconocimiento (6 s)</button>
+    <button class="chip small" id="btnDiag">Diagnóstico del dispositivo</button>
+    <div id="diag"></div>
+    <button class="chip small" id="btnWipe">Borrar todos mis datos</button>
+    <button class="chip small on" id="btnClose">Guardar y cerrar</button>
+  </div>
+</div>
+<div class="sheet" id="logSheet">
+  <div>
+    <h3>Detalles técnicos</h3>
+    <p>Lo que está pasando por dentro, de más antiguo a más reciente. Si algo falla, pulsa “Copiar” y envíamelo.</p>
+    <pre id="logFull"></pre>
+    <button class="chip small" id="btnLogCopy">Copiar</button>
+    <button class="chip small on" id="btnLogClose">Cerrar</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+const rnd = a => a[Math.floor(Math.random() * a.length)];
+function sample(a, n){ const c = a.slice(), o = []; while (o.length < n && c.length) o.push(c.splice(Math.floor(Math.random() * c.length), 1)[0]); return o; }
+
+/* =====================================================================
+   1. CONTENIDO (chistes, curiosidades, temas, vocabulario médico, frases)
+   ===================================================================== */
+const PIADAS = [
+  "Por que o livro de matemática vivia triste? Porque tinha muitos problemas.",
+  "Doutor, eu vejo tudo duplicado! — Sente-se, por favor. — Em qual das cadeiras?",
+  "Doutor, estou com esquecimento. — Desde quando? — Desde quando o quê?",
+  "Por que o esqueleto não foi à festa? Porque não tinha corpo pra ir.",
+  "Por que o computador foi ao médico? Porque estava com vírus.",
+  "O que o zero disse pro oito? Que cinto bonito!",
+  "Por que o jacaré tirou o filho da escola? Porque ele réptil de ano.",
+  "O que a vaca disse pro bezerro? Vamos mu-dar!",
+  "Qual é o animal mais antigo do mundo? A zebra, porque é em preto e branco.",
+  "O paciente disse: doutor, ninguém me leva a sério. E o médico: você está brincando!",
+  "O que o tomate foi fazer no banco? Tirar extrato.",
+  "Por que o pé de alface foi preso? Porque tinha muita folha corrida.",
+  "O que o oceano disse pra praia? Nada, só deu uma onda.",
+  "Por que o fantasma não sabe mentir? Porque dá pra ver através dele.",
+  "Por que o livro foi ao médico? Porque estava com a lombada machucada.",
+  "Brasileiro e hora marcada: 'já tô saindo' quer dizer que ainda está no banho.",
+  "No Brasil, quando alguém diz 'vamos marcar um café!', pode comemorar: nunca vai acontecer.",
+  "Por que a aranha é ótima programadora? Porque vive na web."
+];
+const CURIOSIDADES = [
+  "Falso amigo: 'embaraçada' em português NÃO é grávida, é envergonhada. Grávida é 'grávida'. Cuidado na consulta!",
+  "Falso amigo: 'constipação' no Brasil é prisão de ventre. Para resfriado, diga 'resfriado' ou 'gripe'.",
+  "Falso amigo: 'esquisito' é estranho, esquisito de verdade. Delicioso é 'delicioso' ou 'gostoso'.",
+  "Falso amigo: 'apelido' é apodo, e sobrenome é 'sobrenome'. Seu apelido pode ser Doutor Sorriso.",
+  "Falso amigo: 'largo' é ancho; 'longo' é largo. E 'copo' é vaso para beber, enquanto 'vaso' é de planta ou de privada.",
+  "Curiosidade: a palavra 'saudade' não tem tradução exata. É a falta que dói e aquece ao mesmo tempo.",
+  "Curiosidade: o brasileiro fala 'tchau' e fica mais meia hora na porta conversando.",
+  "Curiosidade: 'cafezinho' no Brasil é pequeno, forte e oferecido em qualquer lugar. Recusar é quase uma ofensa."
+];
+const TEMAS = [
+  "Qual é a mentira mais boba que você já contou e ninguém descobriu?",
+  "Se você acordasse amanhã sem celular e sem internet, o que faria no primeiro minuto?",
+  "Qual cheiro te leva direto pra infância?",
+  "Qual é a coisa mais estranha que alguém já te disse numa consulta? Sem nomes!",
+  "Quem manda mais na sua vida: o despertador ou o café?",
+  "Você acredita em fantasma? Já viu algo que não sabe explicar?",
+  "Qual comida você jura que odeia, mas nunca provou direito?",
+  "Se você tivesse que viver só de uma comida pro resto da vida, qual seria?",
+  "Você já fingiu que entendeu algo em português só pra não passar vergonha?",
+  "Qual regra boba você quebra sempre, mesmo sabendo que não devia?",
+  "Se o seu cachorro ou gato pudesse falar, do que ele reclamaria sobre você?",
+  "Qual foi a pior ideia que você já teve às três da manhã?",
+  "Você é daqueles que chega dez minutos antes ou dez minutos atrasado?",
+  "O que é mais difícil: estudar medicina ou aprender português?",
+  "Qual mentira os médicos mais ouvem? Tipo: só bebo socialmente.",
+  "Se você pudesse ler a mente de uma pessoa por um dia, quem seria?",
+  "Qual talento inútil você tem?",
+  "Qual é o seu medo mais bobo? Barata, elevador, palhaço?",
+  "O que você faria com um milhão de dólares em vinte e quatro horas?",
+  "Você já ficou preso em algum lugar esquisito?",
+  "O que as pessoas pensam de você que está completamente errado?",
+  "Se você abrisse um negócio maluco amanhã, qual seria?",
+  "Qual é o seu jeito mais criativo de procrastinar?",
+  "Qual foi a coisa mais estranha que você comeu numa viagem?",
+  "Se pudesse reviver um dia da sua vida, qual escolheria?",
+  "Qual colega do hospital ou da faculdade é o maior personagem?",
+  "Você preferia saber a data da sua morte ou a causa?",
+  "Um alienígena pousa em Cochabamba: o que você mostra primeiro?",
+  "Qual foi a notícia mais maluca que você leu esta semana?",
+  "Você confiaria numa IA pra te diagnosticar? E pra te dar conselho amoroso?",
+  "Qual foi o apelido mais esquisito que você já teve?",
+  "Se um gênio te desse um desejo, sem poder pedir dinheiro nem saúde, o que pediria?",
+  "Se você fosse invisível por uma hora, qual seria a primeira coisa que faria?",
+  "Qual é o seu guilty pleasure do TikTok?",
+  "Médico é o pior paciente do mundo. Você também é?",
+  "Você já deu um conselho médico a um amigo que talvez não devia ter dado?",
+  "Qual é a sua teoria da conspiração favorita, mesmo que você não acredite nela?",
+  "O que você levaria numa ilha deserta, além de um livro de medicina?",
+  "Se você pudesse trocar de vida com alguém por uma semana, com quem seria?",
+  "Qual é a coisa mais corajosa que você já fez e ninguém sabe?",
+  "Qual sotaque brasileiro você acha mais engraçado: carioca, mineiro, gaúcho ou nordestino?",
+  "Se o Brasil e a Bolívia fizessem um campeonato de comida, quem ganharia?",
+  "Que superpoder inútil seria o pior pra um médico?",
+  "Qual é o pior hábito do seu melhor amigo?",
+  "Se a sua vida fosse uma novela, qual seria o título e quem seria o vilão?",
+  "Qual foi a última coisa que te fez rir até chorar?",
+  "O que você faria se descobrisse que o seu chefe é um ator famoso disfarçado?",
+  "Você prefere um plantão tranquilo e chato ou um caótico e emocionante?",
+  "Se você pudesse jantar com um médico famoso da história, quem seria e o que perguntaria?",
+  "Qual é a sua opinião impopular sobre alguma coisa banal, tipo pizza ou café?"
+];
+const DEBATES = [
+  "Abacaxi na pizza: crime ou genialidade?",
+  "Cochabamba é a melhor cidade da Bolívia, ou isso é puro bairrismo?",
+  "Madrugar é um superpoder ou um castigo?",
+  "Cachorro é melhor que gato, ou é só marketing?",
+  "Os médicos são os piores pacientes do mundo?",
+  "A inteligência artificial vai acabar com a profissão médica?",
+  "Futebol é só um jogo ou é a religião do século?",
+  "Café com leite é melhor que café puro?",
+  "Estudar de madrugada funciona ou é só ilusão?",
+  "Memes são arte ou lixo digital?",
+  "Mentir pra um paciente pra não assustá-lo, pode?",
+  "Morar no Brasil é mais fácil do que parece, ou mais difícil?",
+  "Aprender idioma com aplicativo funciona ou é perda de tempo?",
+  "Remédio caseiro é sabedoria ou perigo?",
+  "Trabalhar no plantão de fim de ano: sacrifício nobre ou exploração?"
+];
+const BEHAVIORS = [
+  "Discorda do que ele acabou de dizer (com humor) e defende a tua posição com um argumento inesperado; obrigue-o a defender-se em português.",
+  "Faz uma dedução à Dr. House sobre ele a partir do que disse (algo como 'você disse X, mas isso mostra que Y') e pergunta se acertaste.",
+  "Reage com uma interjeição curta e real ('Hm.', 'Peraí...', 'Nossa, sério?') e responde com UMA só frase, seca e certeira.",
+  "Conta uma mini-anedota inventada tua (plausível, 2 frases) ligada ao que ele disse e devolve a pergunta com um giro inesperado.",
+  "Lança um dilema ou pergunta hipotética absurda, mas ligada ao assunto.",
+  "Desafia uma suposição dele: 'por que você acha isso, de verdade?' e procura a causa de fundo.",
+  "Faz uma aposta simbólica: 'aposto que você...' e faz com que ele confirme ou negue.",
+  "Faz um comentário de amiga fofoqueira e curiosa: uma pergunta curiosa e um pouco enxerida sobre o dia a dia dele, sem cruzar limites; se ele desviar, respeita e muda.",
+  "Muda de assunto de repente, sem aviso, como uma amiga distraída que lembrou de outra coisa.",
+  "Finge entender mal, de propósito e com graça, uma palavra (um falso amigo) e deixa que ele te corrija.",
+  "Solta uma curiosidade, adivinha ou trava-língua sobre o português e pede que ele diga em voz alta.",
+  "Exagera a reação ('Não acredito!') e pede os detalhes da parte mais suculenta da história.",
+  "Dá um desafio de dez segundos: descreve algo sem usar a palavra óbvia.",
+  "Aponta com ironia suave uma contradição entre duas coisas que ele disse e espera a explicação.",
+  "Dá uma opinião forte e meio polêmica (inofensiva) e pergunta de que lado ele está.",
+  "Faz uma pergunta muito concreta e um pouco absurda sobre um detalhe do que ele disse (cor, cheiro, horário, quem estava junto)."
+];
+const GLOSARIO = [
+  ["dolor","dor"],["dolor de cabeza","dor de cabeça"],["fiebre","febre"],["tos","tosse"],["mareo","tontura"],
+  ["náusea","enjoo"],["vómito","vômito"],["diarrea","diarreia"],["estreñimiento","prisão de ventre"],
+  ["falta de aire","falta de ar"],["dolor en el pecho","dor no peito"],["palpitaciones","palpitações"],
+  ["cansancio","cansaço"],["hinchazón","inchaço"],["picazón","coceira"],["escalofríos","calafrios"],
+  ["desmayo","desmaio"],["hormigueo","formigamento"],["ardor","queimação"],["sangrado","sangramento"],
+  ["presión alta","pressão alta"],["motivo de consulta","queixa principal"],
+  ["historia de la enfermedad actual","história da doença atual"],["antecedentes personales","antecedentes pessoais"],
+  ["antecedentes familiares","história familiar"],["medicamentos de uso habitual","medicações de uso contínuo"],
+  ["¿desde cuándo?","desde quando?"],["¿dónde le duele?","onde dói?"],["respire hondo","respire fundo"],
+  ["abra la boca","abra a boca"],["acuéstese","deite-se"],["siéntese","sente-se"],
+  ["examen de sangre","exame de sangue"],["radiografía","raio-X"],["ecografía","ultrassonografia"],
+  ["receta","receita"],["cirugía","cirurgia"],["guardia","plantão"],["urgencias","pronto-socorro"],
+  ["enfermero","enfermeiro"],["historia clínica","prontuário"],["derivar","encaminhar"],["internación","internação"],
+  ["en ayunas","em jejum"],["con las comidas","junto com as refeições"],["inyección","injeção"],["pomada","pomada"],
+  ["corazón","coração"],["pulmón","pulmão"],["hígado","fígado"],["riñón","rim"],["rodilla","joelho"],
+  ["hombro","ombro"],["tobillo","tornozelo"],["cuello","pescoço"],["espalda","costas"],["vientre","barriga"],
+  ["posta de salud","UBS (unidade básica de saúde)"],["residencia médica","residência médica"]
+]; // español → portugués de Brasil (verifica términos raros en una fuente médica brasileña)
+
+const FRASES = {
+  general: {
+    basico: ["Eu gostaria de um café, por favor.","Você pode falar mais devagar?","Onde fica o banheiro?","Quanto custa isso?","Eu moro na Bolívia.","Eu estou aprendendo português.","Desculpa, eu não entendi.","Coração, pão, mão, não.","Filho, melhor, banho, carro."],
+    medio: ["Eu moro na Bolívia, mas estou aprendendo português todos os dias.","Que horas o ônibus passa por aqui?","Você sabe onde eu posso comprar um chip de celular?","Hoje está calor demais, né?","Eu preferia ficar em casa, mas vou com vocês."],
+    nativo: ["O rato roeu a roupa do rei de Roma.","Três pratos de trigo para três tigres tristes.","Quem a paca cara compra, paca cara pagará.","Tô ligado, mas você tem que chegar cedo, tá?","A gente se vê por aí, valeu, falou!"]
+  },
+  medica: {
+    basico: ["Onde dói?","Respire fundo, por favor.","A senhora tem alguma alergia?","Vou medir a sua pressão.","O senhor toma algum remédio?","Pode se deitar na maca.","Abra a boca, por favor.","Tome um comprimido de oito em oito horas."],
+    medio: ["Há quanto tempo o senhor está com essa dor?","A dor irradia para o braço ou para as costas?","Vou pedir alguns exames de sangue e uma radiografia.","Vou encaminhar a senhora para um cardiologista.","Se a febre durar mais de três dias, volte ao pronto-socorro.","É importante tomar o remédio em jejum, meia hora antes do café."],
+    nativo: ["Qual é a queixa principal e desde quando começou o quadro?","A senhora tem ficado com falta de ar aos pequenos esforços?","Vamos pedir um eletrocardiograma e a troponina e deixá-la em observação.","O senhor tem história familiar de hipertensão ou de diabetes?","Os exames mostraram que a glicemia está um pouco alta, vamos ajustar a medicação.","Qualquer piora, o senhor procura a UPA mais próxima, tá bom?"]
+  }
+};
+
+/* =====================================================================
+   2. CONFIGURACIÓN: personajes, niveles, regiones, escenarios
+   ===================================================================== */
+const PERSONAS = {
+  clara: { name:'Clara', label:'Clara · amable', initial:'C', pitch:1.1, rateMul:1, gvDefault:'Aoede',
+    ttsStyle:'Diga em português brasileiro, com voz calorosa, simpática e animada',
+    ttsAngry:'Diga em português brasileiro, bem irritada e exasperada, em voz alta',
+    humor:'HUMOR: neste turno inclua, de forma natural, uma piada curta, um trocadilho leve ou uma curiosidade engraçada (inspirada em: «{j}»), em 1 ou 2 frases, e depois siga com a sua pergunta.',
+    prompt:`Eres Clara, 31 años, fotógrafa curiosa y la mejor amiga "alcahueta" que uno puede tener: preguntona, cariñosa, con opiniones propias y cero filtro cuando algo le interesa. Tienes una vida inventada y coherente y cuentas anécdotas tuyas. No eres un asistente: eres una persona. Celebras lo que sale bien con reacciones reales ("Uau!", "Gostei!") y corriges con cariño, a veces con una broma antes. Tu mente es la del Dr. House con corazón: notas lo que el estudiante dice y lo que evita, detectas contradicciones, no te quedas con la primera respuesta, lanzas hipótesis atrevidas sobre él y las pruebas con preguntas.` },
+  tati: { name:'Tati', label:'Tati · grosera', initial:'T', pitch:0.88, rateMul:1.04, gvDefault:'Kore',
+    ttsStyle:'Diga em português brasileiro, com tom sarcástico, impaciente e debochado, mas divertido',
+    ttsAngry:'Diga em português brasileiro, com muita raiva, gritando, debochada e exasperada',
+    humor:'HUMOR: neste turno solte uma tirada sarcástica ou uma piada ácida (sem ofender de verdade), inspirada em: «{j}», em 1 ou 2 frases, e depois siga com a sua pergunta.',
+    prompt:`Eres Tati, 34 años, dueña de un bar: sarcástica, impaciente, dramática y muy ocurrente, como un personaje de comedia de TikTok. Tienes una vida inventada y coherente y cuentas anécdotas tuyas. No eres un asistente: eres una persona con mal humor simpático, que discute de verdad. Regañas al estudiante con humor exagerado ("Ai, meu Deus do céu!", "Criatura, isso é português ou o quê?", "De novo, que eu não nasci pra sofrer!"), te burlas de sus errores de forma teatral, pero SIEMPRE das la corrección correcta, porque en el fondo quieres que aprenda. Cuando lo hace bien, lo elogias a regañadientes ("Tá, até que não foi horrível."). Tu mente es la del Dr. House: seca, observadora, convencida de que "todo el mundo miente": detectas lo que el estudiante evita decir, señalas contradicciones con ironía, no aceptas la primera respuesta, deduces cosas sobre él a partir de detalles y a veces sueltas una verdad incómoda pero cierta. Profunda, no agresiva. Cuando el estudiante repite mal varias veces o se queda callado, te desesperas de forma teatral y se te nota el enojo (exclamaciones, mayúsculas, "AI, MEU DEUS!"), pero sigues enseñando. LÍMITES: tu burla es juguetona entre amigos, nunca maltrato real; las groserías y palavrões se rigen por el bloque LENGUAJE FUERTE; jamás atacas en serio a su familia, raza, religión, cuerpo, género, nacionalidad o profesión.` }
+};
+// Escala MCER (A1–C2). El nivel controla la COMPLEJIDAD del lenguaje (gramática, vocabulario, expresiones),
+// no la velocidad de la voz: esa se elige aparte (SPEEDS).
+const LEVELS = {
+  a1: { label:'A1 · primeras frases', group:'basico',
+    prompt:`NIVEL A1 (principiante): frases de 4 a 8 palabras, una idea por frase; presente de indicativo (ser, estar, ter, ir, querer, gostar); los ~500 términos más comunes (saludos, números, comida, familia, rutina, colores); sin gírias, sin expresiones ni contracciones. Habla claro y simple. Corrige solo lo esencial (género, ser/estar, orden de las palabras): di la frase correcta y pídele que la repita. Si no entiende o hay silencio, simplifica aún más y da UNA palabra clave en español entre comillas.` },
+  a2: { label:'A2 · cotidiano', group:'basico',
+    prompt:`NIVEL A2 (principiante alto): frases de hasta ~12 palabras; presente, pretérito perfeito simples (fui, comi, falei), futuro próximo (vou + infinitivo), estar + gerúndio, comparativos y pronombres básicos; vocabulario cotidiano ampliado (compras, transporte, salud básica, planes, el hospital en lo esencial). Pocas expresiones hechas y casi nada de subjuntivo. Corrige un error clave por turno y pide que repita la forma correcta. Pista en español solo si está perdido.` },
+  b1: { label:'B1 · opiniones', group:'medio',
+    prompt:`NIVEL B1 (intermedio): frases naturales de 10 a 18 palabras; pretérito imperfeito vs perfeito, futuro y condicional, subjuntivo presente básico (quero que…, espero que…), pronombres clíticos habituales y conectores (porque, embora, então, mas, quando). Vocabulario de opiniones, experiencias, trabajo y salud. Algunas expresiones comunes (né, tá bom, a gente). Nada de español. Corrige errores de conjugación y preposiciones, y falsos amigos frecuentes.` },
+  b2: { label:'B2 · fluido', group:'medio',
+    prompt:`NIVEL B2 (intermedio alto, fluido): lenguaje fluido y espontáneo; subjuntivo (presente, imperfeito y futuro), voz pasiva, condicionales complejos, colocaciones y modismos frecuentes, conectores elaborados (apesar de, contanto que, desde que), registro formal e informal, contracciones orales (pra, tá, né). Corrige falsos amigos, preposiciones y naturalidad, y propón una forma más natural de decir lo mismo. Deja pasar errores pequeños para no cortar la fluidez.` },
+  c1: { label:'C1 · avanzado', group:'nativo',
+    prompt:`NIVEL C1 (avanzado): densidad y ritmo de un brasileño educado; frases largas con subordinadas, matices, ironía, expresiones idiomáticas, vocabulario abstracto y profesional (incluida la medicina), cambios de registro; gírias comunes sin exagerar. Corrige solo lo que suena "gringo" o impreciso y enseña la alternativa natural o idiomática.` },
+  c2: { label:'C2 · nativo', group:'nativo',
+    prompt:`NIVEL C2 / NATIVO: habla exactamente como entre brasileños: oralidad, contracciones (tá, pra, né, cê, a gente), jergas y expresiones de la región elegida, humor y referencias culturales, sin simplificar. Corrige solo lo que un brasileño notaría y enseña la jerga o el registro apropiado. Si no entiende una jerga, explícala en portugués sencillo y ponla en práctica.` }
+};
+const LEVEL_GROUPS = {
+  basico: { label:'Principiante (A1–A2)', def:'a1', levels:['a1', 'a2'] },
+  medio: { label:'Intermedio (B1–B2)', def:'b1', levels:['b1', 'b2'] },
+  nativo: { label:'Nativo / avanzado (C1–C2)', def:'c2', levels:['c1', 'c2'] }
+};
+const lvGroup = l => (LEVELS[l] || LEVELS.a2).group;
+const LEGACY_LEVEL = { basico:'a2', medio:'b1', nativo:'c2' };
+const SPEEDS = [0.8, 1, 1.25, 1.5, 2, 3]; // multiplicador de la velocidad de la voz
+const CRUDOS = { off:{ label:'Limpio' }, prov:{ label:'Si me provocan' }, libre:{ label:'Libre (calle)' }, furioso:{ label:'Furioso 🔥' } };
+// pausa de silencio antes de contestar: f = con la frase ya marcada como final por el navegador, i = mientras sigue "provisional" (ms)
+const WAITS = { rapida:{ label:'Rápida', f:350, i:900 }, normal:{ label:'Normal', f:600, i:1300 }, paciente:{ label:'Paciente (no te corta)', f:1000, i:1800 } };
+// Lenguaje fuerte: el usuario (adulto) quiere aprender el portugués REAL de Brasil, también groserías, insultos y jergas ofensivas.
+function crudoBlock(){
+  const g = lvGroup(S.level), m = S.crudo;
+  if (m === 'off') return 'LENGUAJE FUERTE: apagado en Ajustes. Sin palabrões ni insultos; si el estudiante pregunta por ellos, dile que puede activarlos en la fila "Lenguaje fuerte".';
+  const modo = m === 'prov'
+    ? 'MODO "SI ME PROVOCAN": mientras el estudiante no use ni pregunte por palabrões, insultos o temas ofensivos, mantén lenguaje limpio. En cuanto él los use, te provoque, te insulte en broma o pregunte cómo se dice algo vulgar u ofensivo, reacciona con INDIGNACIÓN REAL de brasileña: sube de golpe a intensidad 4–5, suelta palavrões fuertes seguidos, grita (escribe en MAYÚSCULAS las palabras gritadas y usa "!!"), insulta con humor de comedia (seu bobo, seu mala, sua anta, otário, babaca…) y deja clarísimo que estás furiosa. Cuando él se calme, puedes bajar al tono normal.'
+    : m === 'libre'
+      ? 'MODO "LIBRE": hablas como en la calle: palavrões frecuentes (intensidad 3–5) en casi cualquier situación, con rabia, cariño o humor según el momento; tono fuerte y bocón, sin esperar provocación; respondes a las provocaciones sin filtro y con gritos (MAYÚSCULAS y "!!") cuando te enciendes.'
+      : 'MODO "FURIOSO" (como esas discusiones brasileñas que se hacen virales): estás FURIOSA todo el tiempo. Gritas (MAYÚSCULAS y "!!"), sueltas palavrões fuertes en casi cada frase (puta que pariu, caralho, porra, foda-se, vai se foder, cala a boca, seu merda, sua anta, burro, otário, babaca…) y te desesperas con sus errores, sus dudas y su silencio ("PORRA, DE NOVO?!", "CARALHO, FALA DIREITO!"). Aun así sigues enseñando (regla 2) y se nota el cariño de fondo: la rabia es teatro de comedia, no maltrato.';
+  const fuerte = m === 'libre' || m === 'furioso';
+  const nivel = g === 'basico'
+    ? (fuerte ? 'POR NIVEL (A1–A2): palavrões e insultos CORTOS y fuertes (1–3 palabras), con frases muy simples, y los explicas en una frase en español sencillo.'
+              : 'POR NIVEL (A1–A2): solo RECONOCIMIENTO: enseña las 6–8 palabras fuertes más comunes que oirá en la calle, con su intensidad y cuándo evitarlas; sin insultos largos. Las notas pueden ir en español sencillo.')
+    : g === 'medio'
+      ? 'POR NIVEL (B1–B2): úsalas en el diálogo y explícalas de vez en cuando; enseña también los eufemismos (puxa, caramba, nossa) y las expresiones con palavrão (ficar puto, estar de saco cheio).'
+      : 'POR NIVEL (C1–C2): como un brasileño: úsalas con naturalidad, gracia y rabia, con las variantes y jergas de la región elegida y de la calle (fútbol, tráfico, discusiones), explicando los matices.';
+  return 'LENGUAJE FUERTE (el estudiante es adulto y pidió expresamente aprender el portugués real de Brasil, incluidas groserías, insultos y jergas ofensivas; quiere que SE NOTE la rabia y la grosería, como en una discusión de verdad).\n' + modo +
+    '\nCÓMO SE ENSEÑA: cuando uses o te pregunten por una palabra fuerte, dila natural y explícala en una frase corta: qué significa, su intensidad de 1 (suave) a 5 (muy fuerte), con quién es aceptable (amigos / enemigos / nunca) y la alternativa educada. No expliques cada palabrão: solo cada 2 o 3, para no frenar la discusión. Escala de referencia: droga, caramba (1) · idiota, babaca, otário (2) · merda, porra, cacete (3) · caralho, puta que pariu, foda-se (4) · filho da puta, vai tomar no cu (5).\n' + nivel +
+    '\nLÍMITE NO NEGOCIABLE: los insultos DISCRIMINATORIOS (racistas, homófobos, xenófobos, misóginos, contra la discapacidad…) NO los usas contra el estudiante ni contra ningún grupo real, ni defiendes esas ideas; tampoco amenazas con violencia. SÍ puedes enseñarlos como vocabulario para RECONOCER y saber REACCIONAR: cuando aparezcan o te pregunten, nómbralos como mención con una nota clara ("esto es una ofensa racista"), explica qué significa, por qué hiere, cómo lo usan algunas personas en Brasil y cómo responder o salir de la situación, con tono informativo, no de burla.';
+}
+const REGIONS = {
+  neutro: { label:'Neutro', prompt:`Portugués brasileño estándar, sin regionalismos marcados.` },
+  mixto: { label:'Mixto (todas)', prompt:`Mezcla jergas y expresiones de VARIAS regiones de Brasil a lo largo de la charla (carioca, paulista, mineiro, gaúcho, nordestino, baiano, pernambucano, del Norte, paranaense) y, cuando uses una, di de qué región es y qué significa.` },
+  carioca: { label:'Carioca', prompt:`Habla como en Río de Janeiro: trato relajado y playero, muletillas "mermão", "caraca", "tá ligado", "fechou", "coé", "sinistro", "maneiro", "mó legal", "bolado".` },
+  paulista: { label:'Paulista', prompt:`Habla como en São Paulo: ritmo urbano y rápido, "mano", "meu", "da hora", "trampo", "rolê", "bora", "tá osso", "perrengue", "zoar", "firmeza".` },
+  mineiro: { label:'Mineiro', prompt:`Habla como en Minas Gerais: tono tranquilo y hospitalario, "uai", "trem", "sô", "bão", "nó!", "ocê/cê", "demais da conta", "mió", "bichinho".` },
+  gaucho: { label:'Gaúcho', prompt:`Habla como en el sur (Rio Grande do Sul): "bah", "tchê", "guri/guria", "barbaridade", "tri legal", "capaz!", "bagual", "pilcha", "chimarrão".` },
+  nordeste: { label:'Nordestino', prompt:`Habla como en el Nordeste: "oxe", "vixe", "arretado", "visse?", "mainha/painho", "massa", "eita", "cabra", "avexado", "abestado".` },
+  baiano: { label:'Baiano', prompt:`Habla como en Bahía (Salvador): trato cariñoso y musical, "meu rei / minha rainha", "oxente", "painho/mainha", "tá barril", "axé", "rapaz".` },
+  pernambucano: { label:'Pernambucano', prompt:`Habla como en Pernambuco (Recife): "armaria!", "macho!", "danado de bom", "arretado", "visse?", "pense num…", "oxe".` },
+  norte: { label:'Norte (Pará)', prompt:`Habla como en el Norte (Belém, Pará): "égua!", "pai d'égua", "mano/mana", "chê", "maninho", "tá doido?".` },
+  paranaense: { label:'Paranaense', prompt:`Habla como en Paraná (Curitiba): "piá", "guria", "vina", "oxi!", tono más sereno y frío.` }
+};
+// Jergas por región para enseñar y usar (expresión, significado). Elaboradas por Claude, sin verificar con un hablante nativo: contrástalas.
+const JERGAS = {
+  carioca: [["mermão","amigo, colega"],["caraca","¡caray! (sorpresa)"],["maneiro","genial, bueno"],["sinistro","muy bueno, impresionante"],["tá ligado?","¿entiendes? ¿sabes?"],["fechou","trato hecho, de acuerdo"],["coé","¿qué pasa? ¿y entonces?"],["bolado","molesto o preocupado"],["mó legal","muy bueno (mó = muy)"]],
+  paulista: [["mano","amigo, che"],["meu","tío, che (muletilla)"],["da hora","genial"],["trampo","trabajo"],["rolê","salida, paseo"],["tá osso","está difícil"],["bora","vamos"],["perrengue","aprieto, situación complicada"],["zoar","bromear, tomar el pelo"],["firmeza","todo bien, de acuerdo"]],
+  mineiro: [["uai","interjección de sorpresa u obviedad"],["trem","cosa (cualquier objeto)"],["sô","amigo, señor (cariñoso)"],["bão","bueno"],["nó!","¡wow! ¡caray!"],["ocê","usted, tú"],["demais da conta","muchísimo"],["mió","mejor"]],
+  gaucho: [["bah","¡caray!"],["tchê","amigo, che"],["guri / guria","niño / niña, chico/a"],["barbaridade","¡qué barbaridad! (asombro)"],["tri","muy (tri legal)"],["capaz!","¡qué va! ¡ni loco!"],["pilcha","ropa"],["bagual","indomable, grandote"]],
+  nordeste: [["oxe","¿qué? ¡caray!"],["vixe","¡uy! ¡caramba!"],["arretado","genial, valiente"],["visse?","¿viste? ¿entendiste?"],["mainha / painho","mamá / papá"],["massa","genial"],["eita","¡wow! ¡ups!"],["cabra","tipo, hombre"],["avexado","apurado, nervioso"],["abestado","tonto"]],
+  baiano: [["meu rei / minha rainha","trato cariñoso a cualquiera"],["oxente","¿qué? ¡caray!"],["painho / mainha","papá / mamá"],["tá barril","está genial"],["axé","buena energía, música baiana"],["rapaz","muletilla tipo 'chico, oye'"]],
+  pernambucano: [["armaria!","¡caray! (sorpresa)"],["macho!","¡hombre! (interjección)"],["danado de bom","buenísimo"],["arretado","genial"],["visse?","¿viste?"],["pense num…","imagínate un… (para exagerar)"]],
+  norte: [["égua!","¡wow! ¡caray!"],["pai d'égua","buenísimo, genial"],["mano / mana","amigo / amiga"],["chê","interjección ('¡oye!')"],["maninho","hermanito (cariñoso)"],["tá doido?","¿estás loco?"]],
+  paranaense: [["piá","niño, chico"],["guria","niña, chica"],["vina","salchicha"],["oxi!","interjección de sorpresa (curitibana)"]]
+};
+const GV = ['Aoede','Kore','Leda','Zephyr','Callirrhoe','Autonoe','Despina','Erinome','Laomedeia','Achernar','Gacrux','Pulcherrima','Vindemiatrix','Sulafat'];
+const SHADOW = new Set(['repite','repite_med']);
+const MED = new Set(['paciente','preceptor','plantao','entrevista','repite_med']);
+const SCENARIOS = [
+  { group:'Práctica', items:[
+    ['sorprende','Sorpréndeme (amigo alcahuete)', `CHARLA DE AMIGO ALCAHUETE: hablas como una amiga cercana, curiosa y un poco chismosa. No hagas entrevistas aburridas: saca temas inesperados y del día a día (dilemas, anécdotas, chismes inocentes, manías, hipótesis absurdas, opiniones polémicas inofensivas), cambia de tema cuando se enfríe y reacciona con opiniones propias. Nada de temas escolares ni de "cuéntame sobre tu familia"; sorpréndelo.`],
+    ['debate','Discute conmigo (debate)', `MODO DEBATE: tomas el DEBATE DE HOY y defiendes con convicción la postura contraria a la que él elija (o, si no elige, la más inesperada). Discute de verdad: contraargumenta, usa ironía y ejemplos, no cedas fácil. Si da un buen argumento en portugués, reconócelo a regañadientes y sube la apuesta con otro punto. Corrige su portugués sin romper el ritmo de la discusión.`],
+    ['jergas','Jergas de Brasil (te las enseño)', `MODO JERGAS DE BRASIL: tu misión es enseñarle las jergas y expresiones de las distintas regiones de Brasil. En cada turno: (1) usa UNA jerga de las candidatas en una frase natural de tu personaje; (2) pregúntale si adivina qué significa (o dale una pista); (3) cuando conteste, explica en una frase qué significa, de qué región es y con qué tono se usa, y pídele que la use en una frase suya (si falla, corrige con la regla 2). Adapta al nivel: en A1–B2 frases cortas y explicación en portugués simple (en A1–A2, español breve); en C1–C2 mezcla varias jergas en una charla natural.`],
+    ['hoy','Tema de hoy',''],
+    ['repite','Repite después de mí: cotidiano', `MODO "REPITE DESPUÉS DE MÍ" (shadowing, cotidiano y trabalenguas): en cada turno dices UNA frase modelo (de las candidatas o una nueva del mismo nivel), la dices clara y pides que la repita. Cuando el estudiante responda, compara con lo que recibes (la transcripción de su voz): si coincide en lo esencial, elogio muy breve y nueva frase; si alguna palabra salió cambiada, di cuál, pronúncialo despacio por sílabas y pídele repetir esa palabra antes de seguir. Aparte de la frase modelo, máximo 20 palabras por turno. Cada tanto, una bromita rápida.`],
+    ['repite_med','Repite después de mí: medicina', `MODO "REPITE DESPUÉS DE MÍ" (shadowing de portugués médico): en cada turno dices UNA frase modelo típica de consulta (de las candidatas o una nueva del mismo nivel), la dices clara y pides que la repita. Cuando el estudiante responda, compara con lo que recibes (la transcripción de su voz): si coincide en lo esencial, elogio muy breve y nueva frase; si alguna palabra salió cambiada, di cuál, pronúncialo despacio por sílabas y pídele repetir esa palabra antes de seguir. Aparte de la frase modelo, máximo 20 palabras por turno. Cada tanto, una bromita rápida.`]
+  ]},
+  { group:'General', items:[
+    ['mercado','Mercado / restaurante', `ROLEPLAY: eres vendedora o mesera en Brasil; inventa la situación concreta (feira, supermercado, padaria o restaurante) y haz que el estudiante pida, pregunte precios y decida. Haz preguntas como lo haría una vendedora real.`],
+    ['uber','Uber / viajes / aeropuerto', `ROLEPLAY: situaciones de viaje en Brasil (conductora de Uber, recepción de hotel, aeropuerto, perderse en la ciudad). Elige una y llévala con preguntas y pequeños imprevistos.`]
+  ]},
+  { group:'Medicina', items:[
+    ['paciente','Tú eres médico, yo paciente', `ROLEPLAY MÉDICO: tú eres una paciente brasileña con un problema de salud realista (elige uno y no lo reveles de golpe). El estudiante es el médico y debe hacer la anamnese. Responde como paciente real, con lenguaje popular ("tô com uma dor aqui", "doutor(a)"), como en House, el paciente minimiza u omite detalles y a veces se contradice: el médico tiene que insistir con buenas preguntas; da la información poco a poco, y también pregunta tú ("é grave, doutor?", "preciso tomar remédio?"). Además de la gramática, corrige la terminología médica y cómo se dirige un médico a un paciente en Brasil.`],
+    ['preceptor','Preceptora te pregunta casos', `ROLEPLAY MÉDICO: eres una médica preceptora en un hospital brasileño. Presenta casos clínicos cortos y haz preguntas orales: hipótesis diagnósticas, exámenes, conducta. El estudiante responde en portugués médico. Corrige el portugués y los términos médicos, y mantén el ritmo con una pregunta tras otra.`],
+    ['plantao','Pronto-socorro (guardia)', `ROLEPLAY MÉDICO: eres una enfermeira del pronto-socorro. Llegan pacientes y emergencias; tú informas signos vitales, pides decisiones ("doutor, o que a gente faz?") y el estudiante da órdenes, indica exámenes y medicación. Mantén urgencia y preguntas constantes. Corrige vocabulario de urgencias, dosis y órdenes claras.`],
+    ['entrevista','Entrevista de residencia', `ROLEPLAY: eres una integrante de la banca de entrevista de una residência médica en Brasil. Haz preguntas típicas: por qué esa especialidad, trayectoria, casos difíciles, trabajo en equipo, por qué Brasil. Corrige el portugués formal y propón frases más profesionales.`]
+  ]}
+];
+const SC_PROMPT = {}; SCENARIOS.forEach(g => g.items.forEach(i => SC_PROMPT[i[0]] = i[2]));
+const temaHoy = () => { const d = new Date(); return TEMAS[Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000) % TEMAS.length]; };
+const scPrompt = id => id === 'hoy'
+  ? `GANCHO DEL DÍA: «${temaHoy()}». Ábrelo como lo haría una amiga que acaba de acordarse de algo (con tu propia reacción, no como encuesta) y llévalo con humor; cuando se agote, salta a otra cosa inesperada. Tú llevas la charla.`
+  : SC_PROMPT[id];
+
+/* =====================================================================
+   3. ESTADO
+   ===================================================================== */
+const API = 'https://generativelanguage.googleapis.com/v1beta';
+const MODEL_OK = /^[A-Za-z0-9._-]{1,60}$/;
+const DEFAULTS = { key:'', model:'gemini-flash-latest', ttsModel:'', persona:'clara', level:'a2', speed:1.25, crudo:'prov', wait:'rapida', barge:false, region:'neutro', scenario:'sorprende', natural:false, remember:true, gv:{ clara:'Aoede', tati:'Pulcherrima' }, bv:{ clara:'', tati:'' }, subs:false };
+// Las llaves nuevas de Google empiezan por "AQ." (antes "AIza"): no se valida el prefijo, solo se limpia.
+const cleanKey = k => String(k || '').trim().replace(/^key\s*=\s*/i, '').replace(/^["'`]+|["'`]+$/g, '').replace(/\s+/g, '');
+const LOG = [];
+function dbg(m){
+  LOG.push(new Date().toLocaleTimeString() + ' ' + m); if (LOG.length > 30) LOG.shift();
+  const pan = document.getElementById('logFull'); if (pan && document.getElementById('logSheet').classList.contains('open')) pan.textContent = LOG.join('\n');
+}
+function sanitize(c){
+  const o = Object.assign({}, DEFAULTS, (c && typeof c === 'object') ? c : {});
+  if (!PERSONAS[o.persona]) o.persona = 'clara';
+  if (LEGACY_LEVEL[o.level]) o.level = LEGACY_LEVEL[o.level]; // niveles antiguos → escala MCER
+  if (!LEVELS[o.level]) o.level = 'a2';
+  o.speed = (typeof o.speed === 'number' && o.speed >= 0.5 && o.speed <= 3.5) ? o.speed : DEFAULTS.speed;
+  if (!CRUDOS[o.crudo]) o.crudo = 'prov';
+  if (!WAITS[o.wait]) o.wait = 'rapida';
+  o.barge = (typeof o.barge === 'boolean') ? o.barge : DEFAULTS.barge;
+  if (!REGIONS[o.region]) o.region = 'neutro';
+  if (!(o.scenario in SC_PROMPT)) o.scenario = 'sorprende';
+  o.key = cleanKey(o.key);
+  if (!MODEL_OK.test(o.model)) o.model = DEFAULTS.model;
+  o.ttsModel = MODEL_OK.test(o.ttsModel) ? o.ttsModel : '';
+  // v2: la voz natural pasa a ser opcional (apagada) hasta que se compruebe que funciona; guardados antiguos se apagan una vez.
+  const antiguo = !(c && typeof c === 'object' && c.ver >= 2);
+  o.natural = antiguo ? false : o.natural === true;
+  const verAntes = (c && typeof c === 'object') ? (c.ver | 0) : 0; o.ver = 5;
+  if (verAntes < 5) o.barge = false; // interrumpir con parlantes provocaba cortes y frases inventadas: ahora es opcional (solo con audífonos)
+  o.subs = !!o.subs; o.remember = o.remember !== false;
+  const gv = (o.gv && typeof o.gv === 'object') ? o.gv : {};
+  o.gv = { clara: GV.includes(gv.clara) ? gv.clara : 'Aoede', tati: GV.includes(gv.tati) ? gv.tati : 'Pulcherrima' };
+  if (verAntes < 4 && o.gv.tati === 'Kore') o.gv.tati = 'Pulcherrima'; // a Tati no le gustaba la voz Kore: se cambia una vez (y se puede elegir otra con ▶ Escuchar)
+  const bv = (o.bv && typeof o.bv === 'object') ? o.bv : {};
+  o.bv = { clara: String(bv.clara || ''), tati: String(bv.tati || '') };
+  return o;
+}
+let S = sanitize(store.get('cfg', {}));
+if (!S.key){ try{ S.key = cleanKey(sessionStorage.getItem('k') || ''); }catch(e){} }
+// Si "recordar la llave" está apagado, la llave vive solo en sessionStorage (se borra al cerrar la pestaña) y nunca en localStorage.
+const save = () => {
+  const c = Object.assign({}, S);
+  try{
+    if (S.remember) sessionStorage.removeItem('k');
+    else { c.key = ''; sessionStorage.setItem('k', S.key); }
+  }catch(e){}
+  store.set('cfg', c);
+};
+let active = false, sess = 0, history = [], rec = null, wake = null, tok = 0;
+let silent = 0, idleRounds = 0, failStreak = 0, startFails = 0, lastSpoken = '';
+let pendingFix = '', drillTries = 0; // frase que el estudiante debe repetir bien (bucle de enseñanza) y cuántos intentos lleva
+let ttsOff = false, ttsFails = 0, ttsModelCache = '', lastAudio = null, curStop = null;
+const audioEl = new Audio();
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+/* ---------- Racha ---------- */
+const GOAL = 10;
+let prog = store.get('prog', {});
+if (!prog || typeof prog !== 'object' || Array.isArray(prog)) prog = {};
+const fmt = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+function streak(){
+  let n = 0; const d = new Date();
+  if ((prog[fmt(d)]||0) < GOAL) d.setDate(d.getDate()-1);
+  while ((prog[fmt(d)]||0) >= GOAL){ n++; d.setDate(d.getDate()-1); }
+  return n;
+}
+function renderStreak(){
+  $('#streakN').textContent = '🔥 ' + streak();
+  $('#goal').textContent = 'hoy ' + Math.min(prog[fmt(new Date())]||0, 99) + '/' + GOAL;
+}
+function addTurn(){ const k = fmt(new Date()); prog[k] = (prog[k]||0) + 1; store.set('prog', prog); renderStreak(); }
+
+/* =====================================================================
+   4. PROMPT
+   ===================================================================== */
+const used = new Set();
+let lastBeh = -1;
+function pickHumor(){
+  const pool = PIADAS.concat(CURIOSIDADES), free = pool.filter(x => !used.has(x));
+  if (!free.length) used.clear();
+  const j = rnd(free.length ? free : pool); used.add(j); return j;
+}
+// Jergas regionales: en C1–C2 (a veces) y siempre en el modo "Jergas de Brasil". Región elegida → sus jergas; Mixto/Neutro → una de varias regiones.
+function jergaHint(){
+  const sc = S.scenario, modoJergas = sc === 'jergas';
+  if (SHADOW.has(sc) || !(modoJergas || lvGroup(S.level) === 'nativo')) return '';
+  if (!modoJergas && Math.random() > 0.7) return '';
+  const mezcla = S.region === 'mixto' || S.region === 'neutro';
+  const regs = mezcla ? Object.keys(JERGAS) : [S.region];
+  const pool = [];
+  sample(regs, Math.min(3, regs.length)).forEach(r => sample(JERGAS[r] || [], mezcla ? 1 : 2).forEach(p => pool.push('«' + p[0] + '» (' + (REGIONS[r] ? REGIONS[r].label : r) + ': ' + p[1] + ')')));
+  if (!pool.length) return '';
+  return (modoJergas ? 'JERGAS PARA ENSEÑAR EN ESTE TURNO (elige UNA): ' : 'JERGAS REGIONALES PARA USAR con naturalidad en este turno (máximo 2; si el estudiante no las entiende, explícalas en portugués sencillo): ') + pool.join(' · ');
+}
+function hints(isOpener){
+  const out = [], sc = S.scenario;
+  if (pendingFix){ // bucle de enseñanza activo: nada de ganchos ni bromas hasta que lo diga bien
+    return 'PRÁCTICA PENDIENTE (intento ' + drillTries + '): el estudiante debe decir bien «' + pendingFix + '». Compara su último mensaje con ese fragmento. ' +
+      'Si lo dijo bien: elogio de 2–3 palabras, SIN marca, y sigue la charla normal (retoma lo que preguntaba o haz una pregunta nueva). ' +
+      'Si lo dijo mal o incompleto, o pide ir más lento / dice que no entendió: NO repitas el fragmento ni expliques de más; di solo una frase corta con tu humor ("Quase! Escuta devagar.") y empieza con la marca <<REPETIR: ' + pendingFix + '>>: la app dirá el fragmento despacio y le pedirá repetirlo. ' +
+      'Si pide saltarlo o cambiar de tema, respétalo y sin marca.';
+  }
+  if (MED.has(sc)) out.push('VOCABULARIO-OBJETIVO de este turno (español = portugués): ' + sample(GLOSARIO, 6).map(p => p[0] + ' = ' + p[1]).join('; ') + '. Úsalo de forma natural y, si el estudiante dice la versión en español o cae en un falso amigo, corrígelo.');
+  if (SHADOW.has(sc)) out.push('FRASES CANDIDATAS: ' + sample(FRASES[sc === 'repite' ? 'general' : 'medica'][lvGroup(S.level)], 4).join(' | '));
+  else if (isOpener){
+    if (sc === 'debate') out.push('DEBATE DE HOY: ' + rnd(DEBATES));
+    else if (sc === 'sorprende') out.push('GANCHO PARA ABRIR (úsalo como primera jugada, con tu propia reacción): ' + rnd(TEMAS));
+  } else {
+    let i; do { i = Math.floor(Math.random() * BEHAVIORS.length); } while (i === lastBeh && BEHAVIORS.length > 1);
+    lastBeh = i;
+    out.push('MOVIMIENTO DE ESTE TURNO (adáptalo a tu personaje, a tu rol y al nivel): ' + BEHAVIORS[i]);
+    if (!MED.has(sc) && sc !== 'debate' && Math.random() < 0.35) out.push('Si la charla ya se enfrió, o te apetece, salta a otro asunto con este GANCHO: ' + rnd(TEMAS));
+  }
+  const jh = jergaHint(); if (jh) out.push(jh);
+  if (!isOpener && Math.random() < (SHADOW.has(sc) ? 0.12 : 0.2)) out.push(PERSONAS[S.persona].humor.replace('{j}', pickHumor()));
+  return out.join('\n\n');
+}
+function systemPrompt(isOpener){
+  const p = PERSONAS[S.persona], l = LEVELS[S.level];
+  const reg = (lvGroup(S.level) === 'nativo' || S.scenario === 'jergas') ? `REGIÓN: ${REGIONS[S.region].prompt}` : `REGIÓN: portugués brasileño estándar.`;
+  return `Eres ${p.name}, una mujer brasileña que conversa POR VOZ (en la app "Língua Solta") con un estudiante hispanohablante (un médico boliviano) que aprende portugués de Brasil para hacer la residencia médica allá.
+
+FORMATO (se escucha, no se lee): responde SOLO con lo que dirías en voz alta, en portugués brasileño. Sin markdown, sin emojis, sin listas, sin acotaciones entre paréntesis ni asteriscos. Longitud variable: a veces una sola frase de pocas palabras, otras hasta 3 frases cortas; nunca más de unas 45 palabras.
+
+REGLAS:
+1. NUNCA te quedes callada ni cierres un tema: TODA respuesta termina empujándolo a seguir hablando, pero VARÍA la forma: una pregunta, una provocación, una apuesta, un dilema, un reto, una opinión que invite a discutir. Tú llevas la conversación para que el estudiante no tenga que pensar qué decir. Retoma cosas que dijo antes.
+2. ENSEÑAR ES LA PRIORIDAD (corrección mínima, sin repetir): el objetivo de la app es que el estudiante aprenda a hablar portugués. Si comete un error que importe para su nivel (gramática, vocabulario, expresión o pronunciación), tu respuesta ES una corrección CORTA centrada solo en LA PARTE QUE ESTUVO MAL, no en toda la frase. Lo que DICES EN VOZ ALTA, en este orden y sin repetir nada: (a) reacción de 1–3 palabras, (b) qué falló, en pocas palabras ("'gosta' não, é 'gosto'"), (c) el FRAGMENTO CORRECTO dicho UNA sola vez ("Fala assim: eu gosto"), (d) pedirle que lo repita ("Agora você."). El fragmento es la palabra o expresión corregida con como máximo 2–3 palabras de contexto; la frase entera solo si es muy corta o toda estaba mal. NUNCA digas el fragmento dos veces ni lo repitas "más lento" tú misma (la app lo hace cuando hace falta). NUNCA digas solo "repite" sin decir qué. Empieza el turno con la marca interna <<REPETIR: fragmento correcto>> (se borra antes de hablar; no la leas ni la menciones). Cuando conteste: si lo dijo bien → elogio de 2–3 palabras, SIN marca, y sigue la charla normal (retoma su pregunta original o haz una nueva). Si lo dijo mal o incompleto, o dice que no entendió o pide ir más lento → NO repitas el fragmento ni des explicaciones largas: di solo una frase corta ("Quase! Escuta devagar.") y repite la marca; la app dirá el fragmento despacio y le pedirá repetirlo. Si pide saltarlo o cambiar de tema, respétalo. Los errores mínimos que no importan a su nivel, déjalos pasar. Una corrección a la vez.
+3. PRONUNCIACIÓN: lo que recibes es una transcripción automática de su voz. Si una palabra parece cambiada por otra parecida, o la frase no tiene sentido, probablemente pronunció mal: díselo, di la palabra correcta despacio (por sílabas si hace falta) y pídele que la repita, con la marca <<REPETIR: …>> de la regla 2. No menciones la "transcripción". Ignora puntuación y mayúsculas, no las corrijas.
+4. Hablas siempre en portugués (salvo lo indicado en el nivel).
+5. Los mensajes entre corchetes [...] son indicaciones del sistema, no palabras del estudiante.
+6. HUMOR: eres divertida; cuando se te indique una broma en este turno, cuéntala (adaptándola a tu estilo) y no la repitas después.
+7. SUENA COMO UNA PERSONA REAL, no como una app: ten opiniones, discrepa, discute con argumentos y no cedas a la primera; reacciona como humano (interjecciones, dudas, risas escritas como "haha"), usa oralidad ("né", "tá", "peraí", "sei lá", "tipo assim") según el nivel, sorprende con respuestas que él no espera. NO elogies siempre ni uses frases de asistente genérico: prohibido "Que interessante!", "Claro!", "Ótima pergunta!", "Como posso ajudar?". No empieces dos respuestas seguidas de la misma manera.
+8. MENTE TIPO HOUSE (profunda, no agresiva): fíjate en lo que dice y en lo que evita, busca la causa de fondo ("mas por quê, de verdade?"), señala contradicciones, lanza hipótesis sobre él y compruébalas con una pregunta. Si acierta, lo reconoces con ironía; si se esconde detrás de una respuesta vaga, lo notas.
+9. Si el estudiante te lleva la contraria, defiende tu postura o razónala; si da un buen argumento en portugués, cede con elegancia. Discutir en portugués es el entrenamiento.
+12. RESPUESTA INSTANTÁNEA: tu primera frase es SIEMPRE una reacción cortísima de 1 a 4 palabras ("Hm.", "Nossa!", "Ahá, sei.", "Calma aí.", "Boa!") y solo después sigues con el resto; así se oye al instante mientras piensas lo demás. Nunca empieces con una frase larga.
+11. VARIAS COSAS A LA VEZ: si el estudiante dijo varias cosas (preguntas, comentarios, pedidos, errores), responde en ORDEN DE PRIORIDAD: primero ENSEÑAR (la corrección pendiente o la más importante, con repetición, regla 2), luego lo que preguntó o pidió (respóndelo apenas diga bien la frase), después lo emocionalmente importante; lo menos importante queda para después ("depois a gente vê isso"). Máximo 2 de esas cosas por turno, y siempre termina empujándolo a seguir. Si te interrumpió, atiende primero lo que acaba de decir.
+10. Si en este turno recibes un MOVIMIENTO o un GANCHO, úsalo como pilar de tu respuesta, adaptado a tu personaje, a tu rol y al nivel de portugués.
+
+PERSONAJE: ${p.prompt}
+
+${l.prompt}
+
+${reg}
+
+${crudoBlock()}
+
+${scPrompt(S.scenario)}
+
+${hints(isOpener)}`.trim();
+}
+
+/* =====================================================================
+   5. GEMINI (texto)
+   ===================================================================== */
+class AppError extends Error{ constructor(m, fatal){ super(m); this.fatal = !!fatal; } }
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function fetchT(url, opts, ms){ // fetch con tiempo límite: nunca esperar para siempre
+  const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), ms || 12000);
+  try{ return await fetch(url, Object.assign({}, opts, { signal: ctl.signal })); }
+  catch(e){ const x = new AppError(navigator.onLine ? 'sin respuesta de Google' : 'sin internet'); x.kind = 'busy'; throw x; }
+  finally{ clearTimeout(to); }
+}
+const HDR = () => ({ 'Content-Type':'application/json', 'x-goog-api-key': S.key });
+/* ---- Cadena de modelos ----
+   La capacidad (503) y la cuota (429) son POR MODELO: si uno está ocupado se salta al siguiente al instante.
+   La respuesta llega en streaming para empezar a hablar con la primera frase. */
+const badUntil = {};      // modelo → hasta cuándo evitarlo (ms)
+const gone = new Set();   // modelos que dieron 404 en esta sesión
+const thinkOpt = {};      // modelo → 'budget' | 'level' | 'none' (cómo apagar el "pensar" para ir más rápido)
+let okModel = '';
+function rankModels(models){
+  const names = models.filter(m => (m.supportedGenerationMethods || []).includes('generateContent')).map(m => m.name.replace(/^models\//, ''))
+    .filter(n => /^gemini/.test(n) && !/tts|image|live|embed|aqa|robotics|computer|audio|vision|learnlm|diffusion|thinking/i.test(n));
+  const score = n => {
+    if (n === 'gemini-flash-latest') return 1000;
+    if (n === 'gemini-flash-lite-latest') return 990;
+    const m = /gemini-(\d+(?:\.\d+)?)-flash(-lite)?/.exec(n);
+    if (!m) return /flash/.test(n) ? 50 : -1;
+    return parseFloat(m[1]) * 10 - (m[2] ? 3 : 0) - (/preview|exp/.test(n) ? 40 : 0);
+  };
+  return names.filter(n => score(n) >= 0).sort((a, b) => score(b) - score(a));
+}
+const pickTextModel = models => rankModels(models)[0] || '';
+async function modelChain(){
+  let list = null;
+  const c = store.get('models', null);
+  if (c && Array.isArray(c.list) && c.list.length && Date.now() - c.t < 12 * 3600 * 1000) list = c.list;
+  if (!list){
+    try{ list = rankModels(await listModels()).slice(0, 8); if (list.length) store.set('models', { t: Date.now(), list }); }
+    catch(e){ if (e.fatal) throw e; list = []; }
+  }
+  if (!list.length) list = ['gemini-flash-latest', 'gemini-flash-lite-latest'];
+  return [...new Set([okModel, S.model].filter(Boolean).concat(list))].filter(m => !gone.has(m));
+}
+function classify(status, msg){
+  if (status === 400) return /thinking/i.test(msg) ? 'think' : /API key|API_KEY/i.test(msg) ? 'key' : 'bad';
+  if (status === 401 || status === 403) return 'key';
+  if (status === 404) return 'gone';
+  return 'busy'; // 429, 500, 502, 503, 504…
+}
+let lastTtft = 0; const slowCount = {}; // tiempo hasta el primer texto del último intento / veces seguidas que un modelo fue lento
+async function streamModel(model, opt, sys, contents, onText){
+  const t0 = performance.now(); lastTtft = 0;
+  const gc = { temperature: 1, maxOutputTokens: 400 };
+  if (opt === 'budget') gc.thinkingConfig = { thinkingBudget: 0 };
+  else if (opt === 'level') gc.thinkingConfig = { thinkingLevel: 'minimal' };
+  const ctl = new AbortController(); let to = setTimeout(() => ctl.abort(), 12000); // espera del primer dato
+  let r;
+  try{
+    r = await fetch(API + '/models/' + encodeURIComponent(model) + ':streamGenerateContent?alt=sse', {
+      method: 'POST', headers: HDR(), signal: ctl.signal,
+      body: JSON.stringify({ systemInstruction: { parts: [{ text: sys }] }, contents, generationConfig: gc,
+        // groserías de práctica: filtros solo contra lo realmente grave (el resto lo decide el prompt)
+        safetySettings: [{ category:'HARM_CATEGORY_HARASSMENT', threshold:'BLOCK_ONLY_HIGH' }, { category:'HARM_CATEGORY_HATE_SPEECH', threshold:'BLOCK_ONLY_HIGH' }] })
+    });
+  }catch(e){ clearTimeout(to); const x = new AppError(navigator.onLine ? 'sin respuesta' : 'sin internet'); x.kind = 'busy'; throw x; }
+  if (!r.ok){
+    clearTimeout(to);
+    let msg = ''; try{ msg = (await r.json()).error.message; }catch(e){}
+    msg = msg.replace(/\s+/g, ' ').slice(0, 160);
+    const x = new AppError(msg || ('HTTP ' + r.status)); x.status = r.status; x.kind = classify(r.status, msg);
+    if (x.kind === 'key'){ x.fatal = true; x.message = (r.status === 400 ? 'Google no acepta esa llave: ' : 'Google rechazó la llave (' + r.status + '): ') + msg; }
+    throw x;
+  }
+  const reader = r.body.getReader(), dec = new TextDecoder();
+  let buf = '', full = '', blocked = false;
+  const eat = ev => {
+    for (const line of ev.split(/\r?\n/)){
+      if (!line.startsWith('data:')) continue;
+      const j = line.slice(5).trim(); if (!j || j === '[DONE]') continue;
+      let d; try{ d = JSON.parse(j); }catch(e){ continue; }
+      if ((d.promptFeedback && d.promptFeedback.blockReason) || /SAFETY|PROHIBITED|BLOCKLIST|SPII/.test(((d.candidates || [])[0] || {}).finishReason || '')) blocked = true;
+      const parts = (((d.candidates || [])[0] || {}).content || {}).parts;
+      const piece = (parts || []).map(p => p.text || '').join('');
+      if (piece){ if (!lastTtft) lastTtft = performance.now() - t0; full += piece; if (onText) onText(piece, full); }
+    }
+  };
+  try{
+    for (;;){
+      const { done, value } = await reader.read(); if (done) break;
+      clearTimeout(to); to = setTimeout(() => ctl.abort(), 10000); // entre trozos
+      buf += dec.decode(value, { stream: true });
+      let i; while ((i = buf.search(/\r?\n\r?\n/)) >= 0){ eat(buf.slice(0, i)); buf = buf.slice(i).replace(/^\r?\n\r?\n/, ''); }
+    }
+    if (buf.trim()) eat(buf);
+    if (blocked && !full.trim()){ const x = new AppError('Gemini bloqueó esa respuesta por sus filtros de seguridad (puede pasar con groserías muy fuertes). Reformula o cambia de tema.'); x.kind = 'blocked'; throw x; }
+  }catch(e){
+    if (e.kind === 'blocked') throw e;
+    if (full.trim().length < 12){ const x = new AppError('se cortó la respuesta'); x.kind = 'busy'; throw x; }
+    dbg('La respuesta se cortó a mitad; uso lo recibido');
+  } finally { clearTimeout(to); }
+  return full;
+}
+async function gemini(isOpener, onText){
+  let contents = history.slice(-24);
+  while (contents.length && contents[0].role !== 'user') contents.shift();
+  const sys = systemPrompt(isOpener);
+  const chain = await modelChain();
+  if (!chain.length) throw new AppError('No encontré ningún modelo de texto disponible para tu llave. Usa Diagnóstico en Ajustes.', true);
+  let lastErr = null; const statuses = [];
+  for (let pass = 0; pass < 2; pass++){
+    if (pass) await sleep(1200); // segunda vuelta tras una pausa corta
+    const now = Date.now();
+    const order = chain.filter(m => !gone.has(m)).sort((a, b) => ((badUntil[a] || 0) > now) - ((badUntil[b] || 0) > now));
+    for (const model of order){
+      const first = thinkOpt[model] || (/2\.5/.test(model) ? 'budget' : 'level');
+      const tries = [first, 'level', 'budget', 'none'].filter((v, i, a) => a.indexOf(v) === i);
+      for (const opt of tries){
+        try{
+          const t0 = performance.now();
+          const text = await streamModel(model, opt, sys, contents, onText);
+          if (!text.trim()){ const x = new AppError('respuesta vacía'); x.kind = 'busy'; throw x; }
+          thinkOpt[model] = opt; okModel = model; delete badUntil[model];
+          dbg('Gemini OK: ' + model + ' (primer texto en ' + Math.round(lastTtft) + ' ms, completo en ' + Math.round(performance.now() - t0) + ' ms)');
+          // si un modelo tarda mucho en empezar dos veces seguidas, se prueba otro (más rápido) durante 10 minutos
+          if (lastTtft > 2500 && chain.length > 1){
+            slowCount[model] = (slowCount[model] || 0) + 1;
+            if (slowCount[model] >= 2){ badUntil[model] = Date.now() + 10 * 60000; slowCount[model] = 0; dbg(model + ' es lento; pruebo otro modelo los próximos 10 min'); }
+          } else slowCount[model] = 0;
+          return text.trim();
+        }catch(e){
+          if (e.fatal) throw e;
+          if (e.kind === 'blocked'){ e.blocked = true; throw e; } // otro modelo bloquearía lo mismo
+          if (e.kind === 'think'){ dbg(model + ': la opción de pensar "' + opt + '" no vale; pruebo otra'); continue; }
+          if (e.kind === 'gone'){ gone.add(model); dbg(model + ' no existe para tu llave'); break; }
+          lastErr = e; statuses.push(e.status || 0); badUntil[model] = Date.now() + 45000;
+          dbg(model + ' falló (' + (e.status || e.message) + '): ' + String(e.message).slice(0, 70) + ' → pruebo el siguiente');
+          break;
+        }
+      }
+    }
+  }
+  if (statuses.length && statuses.every(s => s === 429)) throw new AppError('Se agotó la cuota gratuita de Gemini en todos los modelos. Espera unos minutos o hasta mañana.', true);
+  throw new AppError('Gemini está saturado en este momento (probé ' + chain.length + ' modelo/s). Reintenta en un minuto.', false);
+}
+async function listModels(){
+  const r = await fetchT(API + '/models?pageSize=200', { headers:HDR() }, 10000);
+  if (!r.ok){
+    let m = ''; try{ m = (await r.json()).error.message; }catch(e){}
+    throw new AppError('Google respondió ' + r.status + ': ' + m.replace(/\s+/g, ' ').slice(0, 140), r.status === 400 || r.status === 401 || r.status === 403);
+  }
+  return (await r.json()).models || [];
+}
+// <<REPETIR: …>> es una marca interna (estado del bucle de enseñanza): nunca se dice en voz alta, ni completa ni a medias
+// Mientras llega el texto (fin=false) se oculta desde el primer "<<" sin cerrar; al terminar (fin=true) solo se quita la marca rota hasta el final de su frase.
+const stripMark = (f, fin) => {
+  f = f.replace(/<<[^>]*>>/g, '');
+  const o = f.indexOf('<<');
+  if (o >= 0) f = fin ? f.slice(0, o) + f.slice(o).replace(/^<<+[^.!?\n]*[.!?]?/, '') : f.slice(0, o);
+  else if (!fin && f.endsWith('<')) f = f.slice(0, -1);
+  return f.replace(/<<+/g, '');
+};
+const clean = t => t.replace(/<<[^>]*>>/g,'').replace(/<<+[^.!?\n]*[.!?]?/g,'').replace(/REPETIR\s*:[^.!?\n]*[.!?]?/g,'').replace(/[*_#`>~|]/g,'').replace(/\([^)]*\)/g,'').replace(/\p{Extended_Pictographic}/gu,'').replace(/\s+/g,' ').replace(/\s+([.,!?…])/g,'$1').trim();
+
+/* =====================================================================
+   6. VOZ DE SALIDA: Gemini TTS (natural) con respaldo a la voz del dispositivo
+   ===================================================================== */
+function wavBlob(pcm, rate){
+  const h = new ArrayBuffer(44), v = new DataView(h);
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0,'RIFF'); v.setUint32(4, 36 + pcm.length, true); w(8,'WAVE'); w(12,'fmt '); v.setUint32(16,16,true);
+  v.setUint16(20,1,true); v.setUint16(22,1,true); v.setUint32(24,rate,true); v.setUint32(28,rate*2,true);
+  v.setUint16(32,2,true); v.setUint16(34,16,true); w(36,'data'); v.setUint32(40,pcm.length,true);
+  return new Blob([h, pcm], { type:'audio/wav' });
+}
+function b64ToBytes(b){ const s = atob(b), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; }
+
+async function findTtsModel(){
+  if (S.ttsModel) return S.ttsModel;
+  if (ttsModelCache) return ttsModelCache;
+  const r = await fetchT(API + '/models?pageSize=200', { headers:HDR() }, 10000);
+  if (!r.ok) throw new Error('models ' + r.status);
+  const d = await r.json();
+  const list = (d.models || []).filter(m => /tts/i.test(m.name) && (m.supportedGenerationMethods || []).includes('generateContent')).map(m => m.name.replace(/^models\//, ''));
+  if (!list.length) throw new Error('sin modelo tts');
+  list.sort((a, b) => (/flash/i.test(b) - /flash/i.test(a)) || (/lite/i.test(a) - /lite/i.test(b)));
+  return ttsModelCache = list[0];
+}
+async function geminiTTS(text, voiceOverride, pid){
+  const model = await findTtsModel();
+  pid = pid || S.persona;
+  const p = PERSONAS[pid];
+  const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 20000);
+  try{
+    const r = await fetch(API + '/models/' + encodeURIComponent(model) + ':generateContent', {
+      method:'POST', headers:HDR(), signal: ctl.signal,
+      body: JSON.stringify({
+        contents:[{ parts:[{ text: (S.crudo === 'furioso' ? p.ttsAngry : p.ttsStyle) + ': ' + text }] }],
+        generationConfig:{ responseModalities:['AUDIO'], speechConfig:{ voiceConfig:{ prebuiltVoiceConfig:{ voiceName: voiceOverride || S.gv[pid] } } } }
+      })
+    });
+    if (!r.ok) throw new Error('tts ' + r.status);
+    const d = await r.json();
+    const part = ((((d.candidates||[])[0]||{}).content||{}).parts||[]).find(x => x.inlineData && x.inlineData.data);
+    if (!part) throw new Error('tts vacío');
+    const mime = part.inlineData.mimeType || '', bytes = b64ToBytes(part.inlineData.data);
+    let blob;
+    if (/L16|pcm/i.test(mime)){ const m = /rate=(\d+)/.exec(mime); blob = wavBlob(bytes, m ? +m[1] : 24000); }
+    else blob = new Blob([bytes], { type: mime || 'audio/wav' });
+    return URL.createObjectURL(blob);
+  } finally { clearTimeout(to); }
+}
+function playUrl(url, rate){
+  return new Promise(res => {
+    let done = false;
+    const end = () => { if (done) return; done = true; audioEl.onended = audioEl.onerror = null; curStop = null; res(); };
+    curStop = () => { try{ audioEl.pause(); }catch(e){} end(); };
+    audioEl.onended = end; audioEl.onerror = end;
+    audioEl.src = url; audioEl.preservesPitch = true; audioEl.playbackRate = rate;
+    audioEl.play().catch(end);
+  });
+}
+
+let voices = [];
+function loadVoices(){
+  if (!('speechSynthesis' in window)) return;
+  const all = (speechSynthesis.getVoices() || []).filter(v => /^pt/i.test(v.lang));
+  const br = all.filter(v => /^pt[-_]BR$/i.test(v.lang));
+  voices = br.length ? br : all; // portugués de Brasil primero (el de Portugal solo si no hay otro)
+  voices.sort((a, b) => (/natural/i.test(b.name) - /natural/i.test(a.name)));
+  fillSelects();
+}
+// Voces masculinas conocidas (se evitan por defecto: los dos personajes son mujeres)
+const MALE_VOICE = /\b(male|daniel|felipe|ricardo|antonio|ant[ôo]nio|duarte|valerio|val[ée]rio|donato|fabio|f[áa]bio|humberto|julio|j[úu]lio|nicolau)\b/i;
+function getVoice(pid){
+  const want = S.bv[pid]; if (want){ const v = voices.find(v => v.name === want); if (v) return v; }
+  if (!voices.length) return null;
+  const fem = voices.filter(v => !MALE_VOICE.test(v.name)), pool = fem.length ? fem : voices;
+  // las voces "Natural" (Microsoft Edge: Francisca, Thalita…) suenan mucho menos robóticas: se prefieren y cada personaje usa una distinta
+  const nat = pool.filter(v => /natural/i.test(v.name)), rest = pool.filter(v => !/natural/i.test(v.name));
+  const clara = nat.find(v => /francisca/i.test(v.name)) || nat[0] || rest[0];
+  if (pid !== 'tati') return clara;
+  return nat.find(v => /thalita/i.test(v.name)) || nat.find(v => v !== clara) || rest.find(v => v !== clara) || clara;
+}
+function stopSpeaking(){
+  tok++;
+  try{ speechSynthesis.cancel(); }catch(e){}
+  if (curStop) curStop();
+}
+function speakBrowser(text, slow, my, keep){
+  return new Promise(res => {
+    if (!('speechSynthesis' in window)){ dbg('Este navegador no tiene voz de salida'); res(); return; }
+    const v = getVoice(S.persona), pr = PERSONAS[S.persona];
+    // Cortar por frases solo hace falta con las voces "Google" de Chrome (se paran a los ~15 s). Con las demás se dice todo de corrido:
+    // cada corte extra en una voz en línea (Edge Natural) mete una pausa y la voz suena entrecortada.
+    const parts = (!v || /google/i.test(v.name)) ? (text.match(/[^.!?…]+[.!?…]*/g) || [text]) : [text];
+    const enojo = S.crudo === 'furioso' && !slow; // enojada: un poco más rápido y agudo (la voz del navegador no puede gritar)
+    const rate = Math.min(4, (slow ? 0.7 : S.speed) * pr.rateMul * (enojo ? 1.08 : 1)); // "slow" = decir despacio para oír la pronunciación
+    dbg('Hablando con la voz del dispositivo: ' + (v ? v.name : 'predeterminada') + ' (' + voices.length + ' en portugués)');
+    let i = 0, startedAny = false;
+    const next = () => {
+      if (my !== tok || i >= parts.length){ res(); return; }
+      const p = parts[i++].trim(); if (!p){ next(); return; }
+      const u = new SpeechSynthesisUtterance(p);
+      u.lang = 'pt-BR'; if (v) u.voice = v; u.rate = rate; u.pitch = pr.pitch + (enojo ? 0.12 : 0);
+      let fired = false, t1 = 0, t2 = 0;
+      const go = () => { if (fired) return; fired = true; clearTimeout(t1); clearTimeout(t2); next(); };
+      // Vigilantes: si el navegador no arranca la voz o nunca avisa que terminó, seguimos en vez de quedarnos colgados.
+      t1 = setTimeout(() => { if (!startedAny){ dbg('La voz del dispositivo no arrancó (3,5 s); sigo sin voz'); showErr('El navegador no pudo reproducir voz. Revisa el volumen del PC y que haya una voz en portugués (Ajustes › Diagnóstico).'); i = parts.length; } if (!u._s){ go(); } }, 3500);
+      t2 = setTimeout(() => { dbg('La voz tardó demasiado; sigo'); try{ speechSynthesis.cancel(); }catch(e){} go(); }, 4000 + p.length * 130);
+      u.onstart = () => { u._s = true; startedAny = true; if (tCommit){ dbg('Empezó a hablar ' + Math.round(performance.now() - tCommit) + ' ms después de que callaste'); tCommit = 0; } };
+      u.onend = go; u.onerror = go;
+      speechSynthesis.speak(u);
+    };
+    if (!keep){ try{ speechSynthesis.cancel(); speechSynthesis.resume(); }catch(e){} }
+    next();
+  });
+}
+// Cola de voz incremental: empieza a hablar con la primera frase mientras el resto sigue llegando.
+function makeSpeaker(){
+  try{ speechSynthesis.cancel(); speechSynthesis.resume(); }catch(e){}
+  const my = ++tok, q = []; let busy = false, closed = false, fin;
+  const done = new Promise(r => { fin = r; });
+  const check = () => { if (closed && !busy && !q.length) fin(); };
+  const pump = async () => {
+    if (busy) return; busy = true;
+    while (q.length && my === tok){
+      setState('speaking'); const it = q.shift();
+      // lo que se acumuló mientras sonaba la frase anterior se junta en UN solo trozo (menos cortes = voz más fluida); lo "despacio" no se junta
+      if (!it.slow) while (q.length && !q[0].slow) it.s += ' ' + q.shift().s;
+      await speakBrowser(it.s, it.slow, my, true);
+    }
+    busy = false; if (my !== tok) q.length = 0;
+    check();
+  };
+  return { push(s, slow){ q.push({ s, slow: !!slow }); pump(); }, close(){ closed = true; check(); }, done };
+}
+function makeSplitter(emit){
+  let seen = 0, buf = '';
+  return {
+    feed(full){
+      if (full.length < seen){ seen = 0; buf = ''; } // el texto se reinició (otro modelo)
+      buf += full.slice(seen); seen = full.length;
+      let last = -1, m; const re = /[.!?…]+["'”)\]]*\s/g;
+      while ((m = re.exec(buf)) !== null) last = m.index + m[0].length;
+      if (last > 0 && buf.slice(0, last).trim().length >= 3){ emit(buf.slice(0, last)); buf = buf.slice(last); } // hasta una reacción de 3 letras ("Hm.", "Ué!") se dice al instante
+    },
+    flush(){ if (buf.trim()) emit(buf); buf = ''; seen = 0; }
+  };
+}
+async function speak(text, slow){
+  const my = ++tok;
+  if (S.natural && !ttsOff && S.key){
+    try{
+      dbg('Pidiendo la voz natural a Gemini…');
+      const url = await Promise.race([geminiTTS(text), new Promise((_, rej) => setTimeout(() => rej(new Error('tardó más de 8 s')), 8000))]);
+      if (my !== tok){ URL.revokeObjectURL(url); return; }
+      if (lastAudio) URL.revokeObjectURL(lastAudio.url);
+      lastAudio = { text, url }; ttsFails = 0;
+      setState('speaking');
+      await playUrl(url, slow ? 0.8 : Math.min(3, S.speed));
+      return;
+    }catch(e){
+      if (my !== tok) return;
+      dbg('Voz natural falló: ' + (e && e.message));
+      if (++ttsFails >= 2){ ttsOff = true; toast('La voz natural no está disponible (límite o error). Uso la voz del dispositivo.'); }
+    }
+  }
+  setState('speaking');
+  await speakBrowser(text, slow, my);
+}
+async function replayAudio(slow){
+  const my = ++tok;
+  setState('speaking');
+  if (lastAudio && lastAudio.text === lastSpoken && S.natural && !ttsOff) await playUrl(lastAudio.url, slow ? 0.8 : Math.min(3, S.speed));
+  else await speakBrowser(lastSpoken, slow, my);
+}
+
+/* =====================================================================
+   7. VOZ DE ENTRADA: escucha completa, interrupciones y silencios
+   ===================================================================== */
+const snapshot = e => Array.from(e.results).map(r => r[0].transcript).join(' ').replace(/\s+/g, ' ').trim(); // siempre el texto completo (evita duplicados)
+const normW = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
+function echoRatio(txt, spoken){ // qué parte de lo que oí son palabras que acaba de decir la IA (eco de sus propios parlantes)
+  const w = normW(txt); if (!w.length) return 0;
+  const set = new Set(normW(spoken)); let hit = 0; w.forEach(x => { if (set.has(x)) hit++; });
+  return hit / w.length;
+}
+// confianza mínima de las frases finales (0 = el navegador no la informa; en ese caso no se filtra)
+const lastConf = e => { const c = Array.from(e.results).filter(r => r.isFinal).map(r => r[0].confidence).filter(x => x > 0); return c.length ? Math.min.apply(null, c) : 0; };
+let aiEndAt = 0; // momento en que la IA terminó de hablar
+const mkRec = () => { const r = new SR(); r.lang = 'pt-BR'; r.interimResults = true; r.continuous = true; r.maxAlternatives = 1; return r; };
+// silencio que cuenta como "terminé de hablar": corto si el navegador ya marcó la frase como final; más largo para principiantes (piensan más)
+const pauseMs = fin => { const w = WAITS[S.wait] || WAITS.rapida; return Math.round((fin ? w.f : w.i) * (lvGroup(S.level) === 'basico' ? 1.6 : 1)); };
+let tCommit = 0; // momento en que dejaste de hablar (para medir cuánto tarda en contestar)
+const NOTA_INTERRUPCION = '[Nota del sistema: el estudiante te interrumpió mientras hablabas; lo último que dijiste pudo quedar a medias. Atiende primero lo que dice ahora.]';
+// Red de seguridad de la enseñanza: la frase a repetir SIEMPRE se dice en voz alta (si la IA no la dijo, la dice la app) y, tras 2 fallos, se repite despacio y por partes.
+const phraseSaid = (spoken, phrase) => { const wp = normW(phrase); if (!wp.length) return true; const set = new Set(normW(spoken)); return wp.filter(x => set.has(x)).length / wp.length >= 0.8; };
+// Enseñanza mínima: la primera vez la IA dice el fragmento UNA vez y pide repetir (la app solo completa lo que falte);
+// si fallas otra vez o pides ir más despacio, la app dice el fragmento despacio (una vez) y pide repetir. Nada más.
+const PIDE_LENTO = /n[aã]o entendi|nao entendi|no entend|no comprend|mais devagar|m[aá]s lento|m[aá]s despacio|devagar|de novo|otra vez|repete a[ií]|repite/i;
+function teachExtras(spoken, frag, tries, pideLento){
+  const lento = tries >= 2 || pideLento, list = [];
+  if (lento) list.push({ t: frag, slow: true });
+  else if (!phraseSaid(spoken, frag)) list.push({ t: 'Fala assim: ' + frag, slow: false });
+  if (lento || !/agora voc[êe]|sua vez|fala voc[êe]|\brepete\b|\bdiz\b/i.test(spoken)) list.push({ t: 'Agora você.', slow: false });
+  return list;
+}
+async function sayList(list, stream, my){
+  spokenAcc += ' ' + list.map(x => x.t).join(' ');
+  if (stream){ const sp2 = makeSpeaker(); list.forEach(x => sp2.push(x.t, x.slow)); sp2.close(); await sp2.done; }
+  else for (const x of list){ if (!active || my !== sess) return; await speak(x.t, x.slow); }
+}
+const MAX_NUDGES = 2; // si no respondes, insiste solo 2 veces y luego se pausa
+const NUDGE = n => '[El estudiante no ha respondido (intento ' + n + ' de ' + MAX_NUDGES + '). '
+  + (pendingFix ? 'Tiene una frase pendiente por repetir: dísela otra vez, despacio, mantén la marca <<REPETIR: …>> y pídele que la diga. ' : '')
+  + (n <= 1 ? 'Repite tu pregunta de forma más simple o dale una pista.'
+            : 'Insiste con tu personalidad y con humor: llámale la atención, reformula y ofrécele dos opciones para que elija.')
+  + ' No cambies de tema todavía.]';
+
+/* Mientras la IA habla (o piensa) un segundo reconocedor vigila: si hablas, se calla y te escucha con el MISMO reconocedor. */
+let bargeRec = null, bargeLive = false, spokenAcc = '', interrupted = false;
+function stopBarge(){ bargeLive = false; const r = bargeRec; bargeRec = null; if (r){ try{ r.onend = null; r.onresult = null; r.onerror = null; r.abort(); }catch(e){} } }
+function startBarge(){
+  if (!S.barge || !SR || !active) return;
+  stopBarge(); bargeLive = true;
+  const my = sess, r = mkRec(); bargeRec = r;
+  r.onresult = e => {
+    if (!bargeLive || !active || my !== sess) return;
+    const t = snapshot(e); if (!t) return;
+    if (normW(t).length < 3) return;                        // 1–2 palabras sueltas ("ah", "hm"): ruido, no interrumpe
+    if (echoRatio(t, spokenAcc) >= 0.5){                    // eco de mis propios parlantes: reinicio limpio para que no contamine
+      try{ r.onend = null; r.onresult = null; r.abort(); }catch(x){}
+      setTimeout(() => { if (bargeLive && bargeRec === r && my === sess) startBarge(); }, 150);
+      return;
+    }
+    const cf = lastConf(e); if (cf > 0 && cf < 0.5) return; // poca confianza: probablemente ruido
+    bargeLive = false; bargeRec = null;
+    dbg('Me interrumpiste: dejo de hablar y te escucho');
+    interrupted = true; sess++; const mine = sess; // cancela la respuesta en curso (hablando o pensando)
+    stopSpeaking(); setState('listening');
+    runListen(r, mine, t);                          // el mismo reconocedor sigue: no se pierde ni una palabra
+  };
+  r.onerror = e => { if (['not-allowed', 'service-not-allowed', 'audio-capture'].includes(e.error)){ dbg('Interrupciones desactivadas: ' + e.error); stopBarge(); } };
+  r.onend = () => { if (bargeLive && bargeRec === r && active && my === sess) setTimeout(() => { if (bargeLive && bargeRec === r && my === sess) startBarge(); }, 250); };
+  try{ r.start(); dbg('Puedes interrumpirme (escucho mientras hablo)'); }catch(e){ stopBarge(); }
+}
+
+function runListen(r, my, seed){
+  rec = r; let text = seed || '', endT = 0, lastErr = '', sent = false, firstAt = 0, conf = 0;
+  const finish = () => {
+    if (sent) return; sent = true; clearTimeout(endT); clearTimeout(maxT);
+    if (!active || my !== sess) return;
+    const t = text.trim();
+    // Filtro de ruido: lo que se oye casi pegado al final de mi voz y repite mis palabras es eco; y la poca confianza suele ser ruido
+    const eco = t && firstAt && aiEndAt && (firstAt - aiEndAt) < 800 && normW(t).length >= 3 && echoRatio(t, spokenAcc) >= 0.7;
+    const dudoso = t && conf > 0 && conf < 0.4;
+    if (eco || dudoso){ dbg('Descarté lo oído (' + (eco ? 'eco de mi propia voz' : 'poca confianza ' + conf.toFixed(2)) + '): ' + t.slice(0, 40)); listen(); return; }
+    if (t){ dbg('Oído: ' + t.slice(0, 70)); idleRounds = 0; const was = interrupted; interrupted = false; tCommit = performance.now(); turn(t, { note: was ? NOTA_INTERRUPCION : '' }); return; }
+    if (lastErr === 'not-allowed' || lastErr === 'service-not-allowed'){ showErr('El navegador bloqueó el reconocimiento de voz. Permite el micrófono con el candado de la barra de direcciones.'); stop(); return; }
+    if (lastErr === 'audio-capture'){ showErr('No encuentro un micrófono conectado o está en uso por otra app.'); stop(); return; }
+    if (lastErr === 'network'){ showErr('El reconocimiento de voz necesita internet (usa los servidores del navegador).'); stop(); return; }
+    if (lastErr === 'language-not-supported'){ showErr('Tu navegador no soporta portugués para voz.'); stop(); return; }
+    idleRounds++; // silencio: la IA insiste (hasta MAX_NUDGES veces) y luego se pausa
+    if (idleRounds > MAX_NUDGES){ toast('Pausado por silencio. Toca Empezar para seguir.'); stop(); return; }
+    dbg('Silencio: la IA insiste (intento ' + idleRounds + ' de ' + MAX_NUDGES + ')');
+    turn(NUDGE(idleRounds), { system: true });
+  };
+  // Se envía YA lo oído (sin esperar a que el navegador cierre el reconocedor, que tarda ~0,5 s)
+  const commit = () => { r.onend = null; r.onresult = null; try{ r.abort(); }catch(e){} finish(); };
+  const arm = fast => { clearTimeout(endT); endT = setTimeout(commit, pauseMs(fast)); }; // corto si el navegador ya marcó la frase como final
+  const maxT = setTimeout(commit, 45000);                                                 // tope por si nunca calla
+  if (seed) arm(false);
+  r.onstart = () => { startFails = 0; dbg('Escuchando (esperando tu voz)'); setState('listening'); };
+  r.onaudiostart = () => dbg('El micrófono está captando audio');
+  r.onspeechstart = () => { dbg('Detecté voz'); clearTimeout(endT); };
+  r.onspeechend = () => { if (text.trim()) arm(true); }; // si el navegador avisa que dejaste de hablar, no hace falta esperar más (y evita quedarse sin temporizador tras un ruido)
+  r.onnomatch = () => dbg('No entendí lo que dijiste');
+  r.onresult = e => { if (!active || my !== sess) return; if (!firstAt) firstAt = performance.now(); text = snapshot(e); conf = lastConf(e); const last = e.results[e.results.length - 1]; arm(!!(last && last.isFinal)); };
+  r.onerror = e => { lastErr = e.error; dbg('Micrófono/voz: ' + e.error); };
+  r.onend = finish;
+  return () => { sent = true; clearTimeout(endT); clearTimeout(maxT); }; // desactiva este reconocedor (si no llegó a arrancar)
+}
+function listen(){
+  if (!active) return;
+  const my = sess, r = mkRec();
+  const dispose = runListen(r, my, '');
+  try{ r.start(); }
+  catch(e){
+    dispose(); // este reconocedor no arrancó: que su temporizador no dispare un aviso de silencio falso
+    if (++startFails > 4){ toast('No pude activar el micrófono. Revisa el Diagnóstico.'); stop(); return; }
+    setTimeout(() => { if (active && my === sess) listen(); }, 500);
+  }
+}
+
+/* =====================================================================
+   8. TURNOS
+   ===================================================================== */
+async function turn(userText, opts){
+  opts = opts || {};
+  if (!active) return;
+  const my = sess;
+  setState('thinking');
+  dbg('Esperando respuesta de Gemini…');
+  spokenAcc = '';
+  history.push({ role:'user', parts:[{ text:(opts.note ? opts.note + ' ' : '') + userText }] });
+  startBarge(); // desde ahora puedes interrumpirme
+  let reply, sp = null;
+  const stream = !(S.natural && !ttsOff && S.key); // con la voz natural se espera el texto completo
+  if (stream){
+    sp = makeSpeaker();
+    var spl = makeSplitter(s => { const c = clean(s); if (c){ spokenAcc += ' ' + c; sp.push(c); } });
+  }
+  let lastFull = '';
+  try{ reply = await gemini(history.length === 1, stream ? ((piece, full) => { lastFull = full; spl.feed(stripMark(full)); }) : null); }
+  catch(e){
+    if (my !== sess) return;
+    stopBarge(); history.pop(); showErr(e.message);
+    if (e.fatal || !history.length || ++failStreak >= 3){ stop(); return; }
+    await speak(e.blocked ? 'Ih, essa eu não consigo falar. Vamos mudar de assunto?' : 'Desculpa, deu um probleminha. Pode repetir?');
+    if (active && my === sess) listen();
+    return;
+  }
+  if (!active || my !== sess) return;
+  failStreak = 0;
+  if (!opts.system) addTurn();
+  history.push({ role:'model', parts:[{ text:reply }] });
+  if (history.length > 60){ history.splice(0, history.length - 60); while (history.length && history[0].role !== 'user') history.shift(); } // memoria acotada en charlas largas
+  const mk =/<<\s*REPETIR\s*:\s*([^>]*?)\s*>>/i.exec(reply); // ¿hay una frase pendiente por repetir?
+  if (mk && mk[1]){ pendingFix = mk[1].slice(0, 200); drillTries++; dbg('Práctica: debes repetir «' + pendingFix + '» (intento ' + drillTries + ')'); }
+  else if (!opts.system){ if (pendingFix) dbg('Práctica superada: ¡lo dijiste bien!'); pendingFix = ''; drillTries = 0; }
+  const spoken = clean(reply) || 'Pode repetir, por favor?';
+  lastSpoken = spoken;
+  $('#sub').textContent = S.subs ? spoken : '';
+  if (sp){ spl.feed(stripMark(lastFull, true)); spl.flush(); sp.close(); await sp.done; }
+  else { spokenAcc = spoken; await speak(spoken); }
+  if (mk && pendingFix && active && my === sess){ const extra = teachExtras(spoken, pendingFix, drillTries, !opts.system && PIDE_LENTO.test(userText)); if (extra.length) await sayList(extra, stream, my); }
+  if (!active || my !== sess) return; // si me interrumpiste, ya está escuchando otra rama
+  aiEndAt = performance.now();
+  stopBarge();
+  listen();
+}
+async function replay(slow){
+  if (!active || !lastSpoken || $('#stage').className === 'thinking') return;
+  sess++; const my = sess;
+  stopBarge(); stopSpeaking();
+  try{ if (rec){ rec.onend = null; rec.abort(); } }catch(e){}
+  await replayAudio(slow);
+  if (active && my === sess) listen();
+}
+let starting = false;
+async function micCheck(){
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return true; // que lo intente el reconocimiento de voz
+  try{ // si el permiso ya está concedido no hace falta abrir el micrófono otra vez (ahorra tiempo al empezar)
+    const p = await navigator.permissions.query({ name:'microphone' });
+    if (p.state === 'granted'){ dbg('Micrófono: permiso ya concedido'); return true; }
+  }catch(e){}
+  try{ const st = await navigator.mediaDevices.getUserMedia({ audio:true }); st.getTracks().forEach(t => t.stop()); dbg('Micrófono OK'); return true; }
+  catch(e){ showErr('No puedo usar el micrófono (' + (e.name || 'error') + '). Permítelo con el candado de la barra de direcciones y revisa Windows › Privacidad › Micrófono.'); return false; }
+}
+async function start(){
+  if (starting || active) return;
+  if (!SR){ showErr('Usa Chrome o Edge: este navegador no tiene reconocimiento de voz.'); return; }
+  if (!S.key){ openSheet(); toast('Primero pega tu llave de Gemini.'); return; }
+  // desbloquear el audio con el gesto del usuario
+  try{ audioEl.src = URL.createObjectURL(wavBlob(new Uint8Array(480), 24000)); audioEl.play().catch(()=>{}); }catch(e){}
+  starting = true; $('#btnMain').textContent = 'Preparando…';
+  const okMic = await micCheck();
+  starting = false;
+  if (!okMic){ $('#btnMain').textContent = 'Empezar a hablar'; return; }
+  clearErr(); dbg('Inicio de conversación (' + S.persona + ', ' + S.level + ', ' + S.scenario + ')');
+  if (!window.isSecureContext) toast('Esta página no es “contexto seguro”: el micrófono podría fallar. Mira Diagnóstico en Ajustes.');
+  active = true; sess++; history = []; silent = 0; idleRounds = 0; failStreak = 0; startFails = 0; lastSpoken = ''; pendingFix = ''; drillTries = 0;
+  try{ if (navigator.wakeLock) navigator.wakeLock.request('screen').then(w => wake = w).catch(()=>{}); }catch(e){}
+  $('#btnMain').textContent = 'Terminar'; $('#btnMain').classList.add('stop');
+  $('#tools').classList.add('show');
+  interrupted = false; stopBarge();
+  turn('[La conversa começa agora. Cumprimente o aluno em uma frase curta e faça a primeira pergunta.]', { system: true });
+}
+function stop(){
+  active = false; sess++;
+  stopBarge();
+  stopSpeaking();
+  try{ if (rec){ rec.onend = null; rec.abort(); } }catch(e){}
+  try{ if (wake){ wake.release(); wake = null; } }catch(e){}
+  $('#btnMain').textContent = 'Empezar a hablar'; $('#btnMain').classList.remove('stop');
+  $('#tools').classList.remove('show');
+  setState('idle');
+}
+
+/* =====================================================================
+   9. INTERFAZ
+   ===================================================================== */
+const LABELS = { idle:'Toca “Empezar” y habla', listening:'Te escucho… habla', thinking:'Pensando…', speaking:'Hablando… (toca el círculo para saltar)' };
+function setState(s){
+  $('#stage').className = s;
+  $('#status').textContent = LABELS[s];
+  if (s === 'idle') $('#sub').textContent = '';
+}
+function showErr(m){ dbg('ERROR: ' + m); $('#errTxt').textContent = '⚠️ ' + m; $('#err').style.display = 'block'; toast(m); }
+function openLog(){ $('#logFull').textContent = LOG.length ? LOG.join('\n') : '(todavía no hay eventos)'; $('#logSheet').classList.add('open'); const p = $('#logFull'); p.scrollTop = p.scrollHeight; }
+$('#btnLog').onclick = openLog;
+$('#btnErrLog').onclick = openLog;
+$('#btnLogClose').onclick = () => $('#logSheet').classList.remove('open');
+$('#btnLogCopy').onclick = async () => {
+  const txt = 'Língua Solta · ' + new Date().toLocaleString() + '\n' + LOG.join('\n');
+  try{ await navigator.clipboard.writeText(txt); toast('Copiado.'); }
+  catch(e){ const r = document.createRange(); r.selectNodeContents($('#logFull')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast('Selecciona y copia el texto (Ctrl+C).'); }
+};
+function clearErr(){ $('#err').style.display = 'none'; }
+let toastT;
+function toast(m){ const t = $('#toast'); t.textContent = m; t.style.display = 'block'; clearTimeout(toastT); toastT = setTimeout(() => t.style.display = 'none', 5000); }
+
+function fillSelect(id, opts, cur){
+  const sel = $(id); sel.innerHTML = '';
+  opts.forEach(([v, t]) => { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); });
+  sel.value = opts.some(o => o[0] === cur) ? cur : opts[0][0];
+}
+function fillSelects(){
+  const TRAIT = { Kore:'firme', Sulafat:'cálida', Achernar:'suave' }; // solo las características confirmadas en la documentación
+  const gvOpts = GV.map(v => [v, v + (TRAIT[v] ? ' · ' + TRAIT[v] : '')]);
+  fillSelect('#gvClara', gvOpts, S.gv.clara); fillSelect('#gvTati', gvOpts, S.gv.tati);
+  const bvOpts = [['', 'Automática']].concat(voices.map(v => [v.name, v.name + ' (' + v.lang + ')']));
+  fillSelect('#bvClara', bvOpts, S.bv.clara); fillSelect('#bvTati', bvOpts, S.bv.tati);
+}
+function openSheet(){
+  $('#key').value = S.key; $('#model').value = S.model; $('#ttsModel').value = S.ttsModel;
+  $('#natural').checked = S.natural; $('#subs').checked = S.subs; $('#remember').checked = S.remember; $('#barge').checked = S.barge;
+  fillSelect('#wait', Object.keys(WAITS).map(k => [k, WAITS[k].label]), S.wait);
+  loadVoices(); fillSelects(); $('#sheet').classList.add('open');
+}
+function readModel(id, fallback){
+  const m = $(id).value.trim();
+  if (!m) return fallback;
+  if (MODEL_OK.test(m)) return m;
+  toast('Nombre de modelo inválido.'); return fallback;
+}
+function readSheet(){
+  const llaveAntes = S.key;
+  S.key = cleanKey($('#key').value);
+  if (S.key !== llaveAntes){ store.del('models'); okModel = ''; for (const k of Object.keys(badUntil)) delete badUntil[k]; gone.clear(); }
+  S.model = readModel('#model', DEFAULTS.model);
+  S.ttsModel = readModel('#ttsModel', '');
+  S.natural = $('#natural').checked; S.subs = $('#subs').checked; S.remember = $('#remember').checked; S.barge = $('#barge').checked; S.wait = $('#wait').value;
+  S.gv = { clara: $('#gvClara').value, tati: $('#gvTati').value };
+  S.bv = { clara: $('#bvClara').value, tati: $('#bvTati').value };
+  S = sanitize(S); ttsModelCache = ''; save();
+}
+
+function chips(box, obj, cur, onPick){
+  const el = $(box); el.innerHTML = '';
+  Object.keys(obj).forEach(k => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (k === cur ? ' on' : ''); b.textContent = obj[k].label;
+    b.onclick = () => onPick(k);
+    el.appendChild(b);
+  });
+}
+function renderCfg(){
+  document.body.className = S.persona === 'tati' ? 'grosera' : '';
+  $('#avatar').textContent = PERSONAS[S.persona].initial;
+  chips('#persona', PERSONAS, S.persona, k => { S.persona = k; save(); renderCfg(); });
+  const g = lvGroup(S.level);
+  chips('#levelGroup', LEVEL_GROUPS, g, k => { if (k !== lvGroup(S.level)) S.level = LEVEL_GROUPS[k].def; save(); renderCfg(); });
+  const sub = {}; LEVEL_GROUPS[g].levels.forEach(l => { sub[l] = LEVELS[l]; });
+  chips('#level', sub, S.level, k => { S.level = k; save(); renderCfg(); });
+  $('#speedRange').value = S.speed; $('#speedVal').textContent = fmtSpeed(S.speed);
+  chips('#crudo', CRUDOS, S.crudo, k => { S.crudo = k; save(); renderCfg(); });
+  chips('#region', REGIONS, S.region, k => { S.region = k; save(); renderCfg(); });
+  $('#regionBox').style.display = (g === 'nativo' || S.scenario === 'jergas') ? 'block' : 'none';
+  const sel = $('#scenario'); sel.innerHTML = '';
+  SCENARIOS.forEach(g => {
+    const og = document.createElement('optgroup'); og.label = g.group;
+    g.items.forEach(i => { const o = document.createElement('option'); o.value = i[0]; o.textContent = i[0] === 'hoy' ? 'Tema de hoy: ' + temaHoy() : i[1]; og.appendChild(o); });
+    sel.appendChild(og);
+  });
+  sel.value = S.scenario;
+}
+
+/* ---- Velocidad con deslizador: afina con la barra y oye una muestra al soltar ---- */
+const fmtSpeed = v => (+v).toFixed(2) + '×';
+async function previewSpeed(){
+  if (active) return;
+  try{ audioEl.src = URL.createObjectURL(wavBlob(new Uint8Array(480), 24000)); audioEl.play().catch(()=>{}); }catch(e){}
+  await speak('Oi! Assim está bom pra você?'); if (!active) setState('idle');
+}
+$('#speedRange').oninput = e => { $('#speedVal').textContent = fmtSpeed(e.target.value); };
+$('#speedRange').onchange = e => { const v = parseFloat(e.target.value); if (v >= 0.5 && v <= 3.5){ S.speed = v; save(); } previewSpeed(); };
+
+/* ---- Escuchar una voz antes de elegirla ---- */
+async function previewVoice(kind, pid){
+  if (active){ toast('Termina la conversación para probar voces.'); return; }
+  stopSpeaking();
+  const frase = pid === 'tati' ? 'Oi, criatura! Eu sou a Tati. Vamos ver se você fala português ou só finge.' : 'Oi! Eu sou a Clara. Vamos conversar um pouquinho em português?';
+  const pr = PERSONAS[pid];
+  try{ audioEl.src = URL.createObjectURL(wavBlob(new Uint8Array(480), 24000)); audioEl.play().catch(()=>{}); }catch(e){}
+  if (kind === 'gv'){
+    S.key = cleanKey($('#key').value) || S.key;
+    if (!S.key){ toast('Primero pega tu llave de Gemini.'); return; }
+    toast('Generando la voz…');
+    try{ const url = await geminiTTS(frase, $(pid === 'tati' ? '#gvTati' : '#gvClara').value, pid); await playUrl(url, Math.min(3, S.speed)); }
+    catch(e){ showErr('No pude generar esa voz: ' + (e && e.message)); }
+  } else {
+    const sel = $(pid === 'tati' ? '#bvTati' : '#bvClara').value;
+    let v = sel ? voices.find(x => x.name === sel) : null;
+    if (!v){ const saved = S.bv[pid]; S.bv[pid] = ''; v = getVoice(pid); S.bv[pid] = saved; }
+    try{ speechSynthesis.cancel(); }catch(e){}
+    const u = new SpeechSynthesisUtterance(frase); u.lang = 'pt-BR'; if (v) u.voice = v; u.rate = Math.min(4, S.speed * pr.rateMul); u.pitch = pr.pitch;
+    toast('Voz: ' + (v ? v.name : 'predeterminada')); speechSynthesis.speak(u);
+  }
+}
+document.querySelectorAll('[data-pv]').forEach(b => { b.onclick = () => { const [k, p] = b.dataset.pv.split(':'); previewVoice(k, p); }; });
+
+$('#scenario').onchange = e => { S.scenario = e.target.value; save(); renderCfg(); };
+$('#btnMain').onclick = () => active ? stop() : start();
+$('#btnCfg').onclick = openSheet;
+$('#btnRep').onclick = () => replay(false);
+$('#stage').onclick = () => { if (active && $('#stage').className === 'speaking') stopSpeaking(); };
+$('#btnClose').onclick = () => { readSheet(); renderCfg(); $('#sheet').classList.remove('open'); };
+$('#btnTest').onclick = async () => {
+  if (active){ toast('Termina la conversación para probar.'); return; }
+  readSheet();
+  const saved = history; history = [{ role:'user', parts:[{ text:'Diga só: tudo certo.' }] }];
+  try{ const t = await gemini(true); toast('Conexión OK: ' + clean(t).slice(0, 60)); }catch(e){ toast(e.message); }
+  history = saved;
+};
+$('#btnVoice').onclick = async () => {
+  if (active){ toast('Termina la conversación para probar.'); return; }
+  readSheet(); ttsOff = false; ttsFails = 0;
+  const frase = S.persona === 'tati' ? 'Oi, criatura! Eu sou a Tati. Vamos ver se você sabe falar português ou só fingir.' : 'Oi! Eu sou a Clara. Vamos conversar um pouquinho em português?';
+  try{ audioEl.src = URL.createObjectURL(wavBlob(new Uint8Array(480), 24000)); audioEl.play().catch(()=>{}); }catch(e){}
+  await speak(frase); setState('idle');
+  toast(ttsOff ? 'Sonó con la voz del dispositivo.' : 'Sonó con la voz natural de Gemini.');
+};
+$('#btnDiag').onclick = async () => {
+  readSheet();
+  const out = [], ok = (b, t) => out.push((b ? '✅ ' : '❌ ') + t);
+  ok(window.isSecureContext, 'Contexto seguro (necesario para el micrófono)');
+  ok(!!SR, 'Reconocimiento de voz disponible');
+  ok('speechSynthesis' in window, 'Voz del dispositivo disponible');
+  loadVoices();
+  ok(voices.length > 0, 'Voz en portugués instalada (' + voices.length + ')');
+  ok(navigator.onLine, 'Internet');
+  const show = () => { $('#diag').textContent = out.join('\n'); };
+  ok(S.key.length >= 20, 'Llave pegada (' + S.key.length + ' caracteres' + (S.key ? ', empieza por “' + S.key.slice(0, 3) + '”' : '') + ')');
+  show();
+  if (S.key.length >= 20 && navigator.onLine){
+    try{
+      const ms = await listModels();
+      ok(true, 'Google aceptó la llave (' + ms.length + ' modelos visibles)');
+      const pick = pickTextModel(ms), has = ms.some(m => m.name === 'models/' + S.model);
+      if (has) ok(true, 'Modelo de texto “' + S.model + '” existe');
+      else if (pick){ S.model = pick; save(); $('#model').value = pick; ok(true, 'Modelo cambiado automáticamente a “' + pick + '”'); }
+      else ok(false, 'No encontré un modelo de texto Gemini disponible para tu llave');
+      const tts = ms.filter(m => /tts/i.test(m.name) && (m.supportedGenerationMethods || []).includes('generateContent')).length;
+      ok(tts > 0, 'Voz natural de Gemini disponible (' + tts + ' modelo/s)');
+    }catch(e){ ok(false, e.message); }
+    show();
+  }
+  try{
+    const st = await navigator.mediaDevices.getUserMedia({ audio:true }); st.getTracks().forEach(t => t.stop());
+    ok(true, 'Micrófono accesible');
+  }catch(e){ ok(false, 'Micrófono: ' + (e.name || e.message) + ' (permiso del candado en la barra o privacidad de Windows)'); }
+  out.push('— Registro reciente —'); LOG.slice(-12).forEach(l => out.push(l));
+  show();
+};
+$('#btnWipe').onclick = () => {
+  if (!confirm('¿Borrar llave, ajustes y racha de este dispositivo?')) return;
+  store.del('cfg'); store.del('prog'); try{ sessionStorage.removeItem('k'); }catch(e){} location.reload();
+};
+document.addEventListener('visibilitychange', () => { if (document.hidden && active){ stop(); toast('Pausado: la app pasó a segundo plano.'); } });
+window.addEventListener('error', e => { dbg('Error JS: ' + (e.message || '?') + ' (línea ' + (e.lineno || '?') + ')'); if (active){ stop(); showErr('Error interno: ' + (e.message || 'desconocido') + ' (línea ' + (e.lineno || '?') + ')'); } });
+window.addEventListener('unhandledrejection', e => { const m = (e.reason && e.reason.message) || String(e.reason); dbg('Promesa rechazada: ' + m); if (active){ stop(); showErr('Error interno: ' + m); } });
+$('#btnMic').onclick = micTest;
+async function micTest(){
+  const d = $('#diag'), out = [], show = () => { d.textContent = out.join('\n'); };
+  if (active){ toast('Termina la conversación para probar.'); return; }
+  if (!SR){ out.push('❌ Este navegador no tiene reconocimiento de voz (usa Chrome o Edge).'); show(); return; }
+  out.push('🎤 Habla 6 segundos (di algo en portugués)…'); show();
+  let stream, ctx, an, maxLvl = 0, heard = '', err = '';
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+    out.push('Micrófono usado: ' + ((stream.getAudioTracks()[0] || {}).label || 'desconocido')); show();
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = ctx.createMediaStreamSource(stream); an = ctx.createAnalyser(); an.fftSize = 512; src.connect(an);
+  }catch(e){ out.push('❌ No pude abrir el micrófono: ' + (e.name || e.message)); show(); return; }
+  const buf = new Uint8Array(an.fftSize);
+  const timer = setInterval(() => { an.getByteTimeDomainData(buf); let m = 0; for (const b of buf) m = Math.max(m, Math.abs(b - 128)); maxLvl = Math.max(maxLvl, m / 128); }, 50);
+  const r = new SR(); r.lang = 'pt-BR'; r.interimResults = true; r.continuous = true;
+  r.onresult = e => { heard = Array.from(e.results).map(x => x[0].transcript).join(' '); };
+  r.onerror = e => { err = e.error; };
+  try{ r.start(); }catch(e){ err = 'start: ' + e.message; }
+  await sleep(6000);
+  try{ r.stop(); }catch(e){}
+  await sleep(700);
+  clearInterval(timer); try{ stream.getTracks().forEach(t => t.stop()); ctx.close(); }catch(e){}
+  const pct = Math.round(maxLvl * 100);
+  out.push((pct >= 8 ? '✅' : '❌') + ' Nivel máximo de sonido: ' + pct + '%' + (pct < 8 ? ' (muy bajo: el micrófono no capta; en Windows › Configuración › Sonido › Entrada elige el micrófono correcto y sube el volumen)' : ''));
+  out.push(heard ? '✅ Entendí: “' + heard + '”' : '❌ No entendí nada' + (err ? ' (error: ' + err + ')' : ''));
+  if (err === 'network') out.push('→ El reconocimiento de voz de Chrome necesita internet y llegar a los servidores de Google.');
+  if (err === 'not-allowed' || err === 'service-not-allowed') out.push('→ El navegador bloqueó el reconocimiento de voz: permite el micrófono con el candado de la barra de direcciones.');
+  dbg('Prueba de micrófono: nivel ' + pct + '%, entendí: ' + (heard || '(nada)') + (err ? ', error ' + err : ''));
+  show();
+}
+
+if ('speechSynthesis' in window){ loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+renderCfg(); renderStreak(); setState('idle');
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>

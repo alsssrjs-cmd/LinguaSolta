@@ -1,0 +1,28 @@
+LINGUA SOLTA - COMO SUBIRLA E INSTALARLA EN EL CELULAR
+
+La carpeta "Lingua Solta - PARA SUBIR" tiene SOLO lo necesario (sin servidor ni .bat). No contiene llaves: la llave de Gemini la pegas tu en el celular.
+Si cambias algo en la app, vuelve a doble clic en "Preparar para subir.bat" y sube la carpeta otra vez.
+
+1) SUBIRLA (gratis, con HTTPS; el microfono SOLO funciona con HTTPS)
+   Opcion A - Netlify Drop (la mas facil): entra a https://app.netlify.com/drop y arrastra la carpeta "Lingua Solta - PARA SUBIR".
+            Te da una direccion https://....netlify.app . Puede pedirte crear una cuenta gratis para que no caduque (verificalo ahi).
+   Opcion B - GitHub Pages: crea un repositorio PUBLICO, sube los archivos de la carpeta (index.html, manifest.json, sw.js, iconos),
+            y en Settings > Pages elige "Deploy from a branch" > main > /(root). La direccion sera https://TU-USUARIO.github.io/NOMBRE/
+   Opcion C - Cloudflare Pages: "Direct upload" con la misma carpeta.
+   (El archivo _headers lo usan Netlify y Cloudflare para reforzar la seguridad; GitHub Pages usa la politica incluida en index.html.)
+
+2) INSTALARLA EN EL CELULAR (Android + Chrome)
+   - Abre la direccion en Chrome del celular.
+   - Menu (tres puntos) > "Instalar app" (o "Agregar a la pantalla principal"). Queda un icono "Lingua Solta" como cualquier app.
+   - Abrela, permite el microfono, toca Ajustes y pega tu llave de Gemini (aistudio.google.com/apikey). Deja activado "Recordar la llave" para no pegarla cada vez.
+   - Consejos en el celular: usa audifonos; deja apagado "interrumpirla mientras habla" (con el altavoz se oye a si misma); la pantalla se mantiene encendida mientras hablas.
+   - iPhone: Safari no permite el reconocimiento de voz dentro de una app instalada; esta app esta pensada para Android + Chrome.
+
+3) SEGURIDAD
+   - Cualquiera con la direccion puede abrir la pagina, pero necesita SU PROPIA llave para hablar. No pegues tu llave en el telefono de otra persona.
+   - Restringe tu llave en Google (solo la API de Gemini) y si la compartiste por error, regenerala.
+   - La llave queda guardada solo en tu telefono. "Borrar todos mis datos" (Ajustes) la elimina.
+
+4) SI ALGO FALLA EN EL CELULAR
+   - Toca el icono 🔍 (arriba) y copia los "Detalles tecnicos"; o Ajustes > Diagnostico del dispositivo.
+   - Sin internet no habla: el reconocimiento de voz y Gemini necesitan conexion (la pagina si abre sin conexion).
