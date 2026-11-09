@@ -1,4 +1,4 @@
-const CACHE = 'lingua-solta-v1';
+﻿const CACHE = 'lingua-solta-v2';
 const FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 // Red primero con límite de 4 s; si la red tarda o falla, se usa la copia guardada (nunca se queda colgado).
 const conTiempo = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('tiempo')), ms))]);

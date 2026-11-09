@@ -87,9 +87,11 @@ select,input[type=text],input[type=password]{width:100%;background:#16120f;color
   <div class="sub" id="sub"></div>
   <div class="tools" id="tools">
     <button class="iconbtn" id="btnRep">🔁 Repetir</button>
+    <button class="iconbtn" id="btnDark">🌑 Pantalla negra</button>
   </div>
 </main>
 
+<div id="dark" style="display:none;position:fixed;inset:0;background:#000;z-index:9999;color:#222;text-align:center;padding-top:45vh;font:13px sans-serif;touch-action:none;user-select:none">Sigo escuchando · mantén pulsado 1 s para volver</div>
 <button class="cta" id="btnMain">Empezar a hablar</button>
 
 <section class="cfg">
@@ -964,7 +966,7 @@ async function sayList(list, stream, my){
   if (stream){ const sp2 = makeSpeaker(); list.forEach(x => sp2.push(x.t, x.slow)); sp2.close(); await sp2.done; }
   else for (const x of list){ if (!active || my !== sess) return; await speak(x.t, x.slow); }
 }
-const MAX_NUDGES = 2; // si no respondes, insiste solo 2 veces y luego se pausa
+const MAX_IDLE = 25; // rondas de escucha seguidas sin oír nada antes de pausar (la IA ya no insiste ni habla sola)
 const NUDGE = n => '[El estudiante no ha respondido (intento ' + n + ' de ' + MAX_NUDGES + '). '
   + (pendingFix ? 'Tiene una frase pendiente por repetir: dísela otra vez, despacio, mantén la marca <<REPETIR: …>> y pídele que la diga. ' : '')
   + (n <= 1 ? 'Repite tu pregunta de forma más simple o dale una pista.'
@@ -1014,10 +1016,11 @@ function runListen(r, my, seed){
     if (lastErr === 'audio-capture'){ showErr('No encuentro un micrófono conectado o está en uso por otra app.'); stop(); return; }
     if (lastErr === 'network'){ showErr('El reconocimiento de voz necesita internet (usa los servidores del navegador).'); stop(); return; }
     if (lastErr === 'language-not-supported'){ showErr('Tu navegador no soporta portugués para voz.'); stop(); return; }
-    idleRounds++; // silencio: la IA insiste (hasta MAX_NUDGES veces) y luego se pausa
-    if (idleRounds > MAX_NUDGES){ toast('Pausado por silencio. Toca Empezar para seguir.'); stop(); return; }
-    dbg('Silencio: la IA insiste (intento ' + idleRounds + ' de ' + MAX_NUDGES + ')');
-    turn(NUDGE(idleRounds), { system: true });
+    // Silencio: la IA NO habla sola; sigue escuchando en silencio. Tras mucho rato sin oírte, se pausa para ahorrar batería.
+    idleRounds++;
+    if (idleRounds > MAX_IDLE){ toast('Pausado por silencio. Toca Empezar para seguir.'); stop(); return; }
+    dbg('Silencio: sigo escuchando sin hablar (' + idleRounds + ' de ' + MAX_IDLE + ')');
+    setTimeout(() => { if (active && my === sess) listen(); }, 300);
   };
   // Se envía YA lo oído (sin esperar a que el navegador cierre el reconocedor, que tarda ~0,5 s)
   const commit = () => { r.onend = null; r.onresult = null; try{ r.abort(); }catch(e){} finish(); };
@@ -1101,6 +1104,16 @@ async function replay(slow){
   await replayAudio(slow);
   if (active && my === sess) listen();
 }
+let micStream = null;
+async function holdMic(){
+  try{ if (micStream || !navigator.mediaDevices) return; const st = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true } });
+    if (!active){ st.getTracks().forEach(t => t.stop()); return; } micStream = st; dbg('Micrófono abierto toda la sesión (sin tilín)'); }catch(e){ dbg('No pude mantener el micrófono abierto: ' + (e.name || e)); }
+}
+function releaseMic(){ try{ if (micStream) micStream.getTracks().forEach(t => t.stop()); }catch(e){} micStream = null; }
+/* Pantalla negra: con OLED casi no gasta y parece apagada; la sesión sigue (Chrome NO deja escuchar con el celular bloqueado). Salir: mantener pulsado 1 s. */
+let darkT = 0;
+function darkOn(){ $('#dark').style.display = 'block'; dbg('Pantalla negra activada'); }
+function darkOff(){ const d = $('#dark'); if (d) d.style.display = 'none'; }
 let starting = false;
 async function micCheck(){
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return true; // que lo intente el reconocimiento de voz
@@ -1125,6 +1138,7 @@ async function start(){
   if (!window.isSecureContext) toast('Esta página no es “contexto seguro”: el micrófono podría fallar. Mira Diagnóstico en Ajustes.');
   active = true; sess++; history = []; silent = 0; idleRounds = 0; failStreak = 0; startFails = 0; lastSpoken = ''; pendingFix = ''; drillTries = 0;
   try{ if (navigator.wakeLock) navigator.wakeLock.request('screen').then(w => wake = w).catch(()=>{}); }catch(e){}
+  holdMic(); // micrófono abierto toda la sesión: en Android evita el "tilín" de inicio/fin del reconocimiento
   $('#btnMain').textContent = 'Terminar'; $('#btnMain').classList.add('stop');
   $('#tools').classList.add('show');
   interrupted = false; stopBarge();
@@ -1136,6 +1150,7 @@ function stop(){
   stopSpeaking();
   try{ if (rec){ rec.onend = null; rec.abort(); } }catch(e){}
   try{ if (wake){ wake.release(); wake = null; } }catch(e){}
+  releaseMic(); darkOff();
   $('#btnMain').textContent = 'Empezar a hablar'; $('#btnMain').classList.remove('stop');
   $('#tools').classList.remove('show');
   setState('idle');
@@ -1321,6 +1336,10 @@ $('#btnWipe').onclick = () => {
   if (!confirm('¿Borrar llave, ajustes y racha de este dispositivo?')) return;
   store.del('cfg'); store.del('prog'); try{ sessionStorage.removeItem('k'); }catch(e){} location.reload();
 };
+$('#btnDark').onclick = darkOn;
+{ const d = $('#dark'); const down = () => { darkT = setTimeout(darkOff, 1000); }, up = () => clearTimeout(darkT);
+  d.addEventListener('pointerdown', down); d.addEventListener('pointerup', up); d.addEventListener('pointercancel', up); d.addEventListener('contextmenu', e => e.preventDefault()); }
+document.addEventListener('visibilitychange', () => { if (!document.hidden && active && !wake){ try{ if (navigator.wakeLock) navigator.wakeLock.request('screen').then(w => wake = w).catch(()=>{}); }catch(e){} } });
 document.addEventListener('visibilitychange', () => { if (document.hidden && active){ stop(); toast('Pausado: la app pasó a segundo plano.'); } });
 window.addEventListener('error', e => { dbg('Error JS: ' + (e.message || '?') + ' (línea ' + (e.lineno || '?') + ')'); if (active){ stop(); showErr('Error interno: ' + (e.message || 'desconocido') + ' (línea ' + (e.lineno || '?') + ')'); } });
 window.addEventListener('unhandledrejection', e => { const m = (e.reason && e.reason.message) || String(e.reason); dbg('Promesa rechazada: ' + m); if (active){ stop(); showErr('Error interno: ' + m); } });
